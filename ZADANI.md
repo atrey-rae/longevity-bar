@@ -82,13 +82,20 @@ Webová věrnostní aplikace pro návštěvníky stánku **Longevity Bar** (Wild
 
 **Odvozený stav**: `dostupná razítka = počet razítek − 4 × počet odměn`. Jakmile `dostupná ≥ 4` a neexistuje odměna ve stavu `ready`/`selected`, server založí odměnu s kategorií dle `tier_index % 3` (0→cocofir, 1→kokosová voda, 2→drink).
 
-## 8. Produkty (seed)
+## 8. Produkty (seed) — dle FINAL ceníku Longevity Bar (know-how v3, 29. 7. 2026)
 
-_Kategorie dle nabídky Wild & Coco — finální seznam potvrdí zadavatel, správa v `/admin/produkty`:_
+**Tier 1 — Cocofir 250 ml** (6 příchutí):
+Young Coconut · Mango · Rybíz · Čoko · Banana Lemon · Slaný karamel
 
-- **Cocofir 250 ml**: všechny aktuální příchutě (viz seed v migraci)
-- **Kokosové vody**: všechny aktuální varianty
-- **Drinky**: nápoje z nabídky stánku Longevity Bar
+**Tier 2 — Kokosová voda 500 ml** (2 varianty):
+Wild Raw · Thai Raw
+
+**Tier 3 — Drink** (všechny nápoje z menu):
+Espresso · Doppio · Lungo · Cappuccino · Flat white · Batch brew · Cold brew · Matcha latté · Matcha mango latté · Cacao magic · Wild ceremony cacao · Longevity drink · Longevito mocktail · Coconut Cuvée · Kombucha levandule
+
+Správa (vypnutí vyprodaných, doplnění) v `/admin/produkty`. Výdej odměny zdarma se na NFCtron markuje dle dohodnutého interního procesu (mimo rozsah appky).
+
+**Seed festivalových dnů**: 5. 8. – 9. 8. 2026 (středa–neděle), tokeny vygenerované náhodně při migraci, QR k tisku v `/admin/dny`.
 
 ## 9. Mimo rozsah (v1)
 
