@@ -63,6 +63,20 @@ export type Setting = {
   updated_at: string;
 }
 
+/** Lead z kvízu bavičů fronty — `/kviz/[bavic]` (migrace 003). */
+export type QuizLead = {
+  id: string;
+  /** Kód baviče z kupónu (A1–F6). */
+  bavic: string;
+  product_slug: string;
+  product_name: string;
+  coupon_code: string;
+  first_name: string;
+  email: string;
+  phone: string;
+  created_at: string;
+}
+
 /**
  * Tvar tabulky očekávaný `@supabase/postgrest-js`.
  * Vztahy (`Relationships`) nepoužíváme — vnořené selecty nikde neděláme,
@@ -112,6 +126,14 @@ export interface Database {
         Setting,
         { key: string; value: unknown; updated_at?: string },
         Partial<Setting>
+      >;
+      quiz_leads: Tabulka<
+        QuizLead,
+        Omit<QuizLead, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        },
+        Partial<QuizLead>
       >;
     };
     Views: Record<string, never>;
