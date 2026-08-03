@@ -10,6 +10,8 @@ export type Profile = {
   id: string;
   email: string | null;
   full_name: string | null;
+  /** Telefon pro speciální výhry — zadává zákazník v appce (migrace 002). */
+  phone: string | null;
   created_at: string;
 }
 

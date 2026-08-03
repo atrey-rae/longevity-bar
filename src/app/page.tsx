@@ -17,7 +17,9 @@ import {
   ensureProfile,
   getLoyaltyState,
   getProductsByIds,
+  getProfileContact,
 } from "@/lib/loyalty-server";
+import { ulozitKontakt } from "./actions";
 import { prvni } from "@/lib/navigation";
 import { razitka } from "@/lib/text";
 import { formatCzechDateTime } from "@/lib/time";
@@ -38,6 +40,7 @@ export default async function DomuPage({
   await ensureProfile(user);
   const stav = await getLoyaltyState(user.id);
   const jeAdmin = await isCurrentUserAdmin(user);
+  const kontakt = await getProfileContact(user.id);
 
   const sken = prvni(sp.sken);
   const jeVyhra = prvni(sp.vyhra) === "1";
@@ -74,7 +77,8 @@ export default async function DomuPage({
       {openReward?.state === "ready" && (
         <section className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 p-5 text-center shadow-karta">
           <p className="text-sm font-black uppercase tracking-widest text-inkoust/70">
-            Máš plnou kartu
+            Tvoje tělo jásá, posouváš se na Level{" "}
+            {tierNumberForIndex(openReward.tier_index + 1)}!
           </p>
           <h1 className="mt-1 text-4xl font-black text-inkoust">Vyhráváš! 🎉</h1>
           <p className="mt-2 text-lg font-bold text-inkoust/85">
@@ -110,13 +114,64 @@ export default async function DomuPage({
       )}
 
       {/* ---------------------------------------------------------------- */}
+      {/* Kontakt pro speciální výhry — zobrazuje se, dokud není vyplněný    */}
+      {/* ---------------------------------------------------------------- */}
+      {(!kontakt.fullName || !kontakt.phone) && (
+        <section className="karta space-y-3">
+          <h2 className="text-base font-black uppercase tracking-widest text-mango-400">
+            Speciální výhry 🎁
+          </h2>
+          <p className="text-sm text-kokos-50/85">
+            Nech nám křestní jméno a telefon — ať tě u baru poznáme a můžeme ti
+            poslat speciální výhry.
+          </p>
+          <form action={ulozitKontakt} className="space-y-2">
+            <input
+              name="jmeno"
+              required
+              maxLength={80}
+              defaultValue={kontakt.fullName ?? ""}
+              placeholder="Křestní jméno"
+              className="vstup"
+              autoComplete="given-name"
+            />
+            <input
+              name="telefon"
+              required
+              type="tel"
+              defaultValue={kontakt.phone ?? ""}
+              placeholder="Telefon (např. 601 123 456)"
+              className="vstup"
+              autoComplete="tel"
+            />
+            <button type="submit" className="tlacitko-zapad w-full">
+              Uložit
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Splněný level po vydání odměny — zůstává jako jeden boxík          */}
+      {/* ---------------------------------------------------------------- */}
+      {!openReward && !summary.cycleFinished && historie.length > 0 && (
+        <section className="rounded-3xl border-2 border-mango-400/70 bg-white/10 px-4 py-3 text-center">
+          <p className="text-sm font-black text-mango-400">
+            Level {tierNumberForIndex(historie[0].tier_index)} splněný ✓ —
+            Tvoje tělo jásá, posouváš se na Level{" "}
+            {tierNumberForIndex(historie[0].tier_index + 1)}!
+          </p>
+        </section>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
       {/* Věrnostní karta                                                   */}
       {/* ---------------------------------------------------------------- */}
       <section className="karta space-y-4">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-mango-400">
-              Tier {summary.upcomingTierNumber}
+              Level {summary.upcomingTierNumber}
               {stav.rewards.length >= 3 &&
                 ` · ${cycleForTierIndex(stav.rewards.length)}. kolo`}
             </p>

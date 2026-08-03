@@ -53,14 +53,29 @@ export async function ensureProfile(user: User): Promise<void> {
     (user.user_metadata?.name as string | undefined) ??
     null;
 
+  // ignoreDuplicates: existující profil se NEpřepisuje — jinak by každé
+  // načtení stránky zahodilo jméno/telefon zadané zákazníkem ve formuláři.
   await admin.from("profiles").upsert(
     {
       id: user.id,
       email: user.email ?? null,
       full_name: fullName,
     },
-    { onConflict: "id" },
+    { onConflict: "id", ignoreDuplicates: true },
   );
+}
+
+/** Kontakt zákazníka pro formulář „jméno + telefon" na kartě. */
+export async function getProfileContact(
+  userId: string,
+): Promise<{ fullName: string | null; phone: string | null }> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("full_name, phone")
+    .eq("id", userId)
+    .maybeSingle();
+  return { fullName: data?.full_name ?? null, phone: data?.phone ?? null };
 }
 
 /* -------------------------------------------------------------------------- */
