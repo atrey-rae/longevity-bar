@@ -1,8 +1,8 @@
 /**
  * Kvíz bavičů fronty — „královská snídaně“.
  *
- * Tři otázky dovedou návštěvníka od jeho reálného rána k snídani, která ho
- * nastartuje na celý den, a k jednomu produktu se slevou 21 %.
+ * Tři otázky vedou od životní priority přes stav trávení k formátu snídaně,
+ * která návštěvníka nastartuje na celý den, a k jednomu produktu se slevou 21 %.
  *
  * Zdroj pravdy pro produkty i kódy kupónů:
  * `_data/healing-festival-bar/kviz-kupony-mapping.md` (vč. sekce KOREKCE 3. 8. —
@@ -73,10 +73,13 @@ export type Kategorie =
   | "slane"
   | "vareni";
 
-/** Typ rána z otázky 1 — určuje primární sadu produktů. */
+/**
+ * Do jakého typu rána se produkt hodí. Popisná vlastnost katalogu — kvíz se
+ * na ni od 4. 8. 2026 neptá, doporučení jedou přes pilíře níž.
+ */
 export type Rano = "rychle" | "energie" | "ritual" | "protein";
 
-/** Chuťový tag z otázky 2 — řadí a doplňuje doporučení. */
+/** Chuťový profil produktu. Rovněž jen popisná vlastnost katalogu. */
 export type Chut = "coko" | "ovoce" | "kokos" | "slana";
 
 export type KvizProdukt = {
@@ -222,15 +225,15 @@ export function kodKuponu(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Otázky — cesta ke „královské snídani“                                       */
+/* Otázky — zdraví, trávení a cesta ke „královské snídani“                     */
 /* -------------------------------------------------------------------------- */
 
-/** Otázka 1 = typ rána, hodnoty odpovídají tagům `rano`. */
-export type OdpovedQ1 = Rano;
-/** Otázka 2 = chuť, hodnoty odpovídají tagům `chut`. */
-export type OdpovedQ2 = Chut;
-/** Otázka 3 = „koruna“ snídaně; `nic` = bez doplňků. */
-export type OdpovedQ3 = "sila" | "fokus" | "streva" | "nic";
+/** Otázka 1 = životní priorita. Určuje „akcent“ doporučení (1–2 produkty). */
+export type OdpovedQ1 = "zdravi" | "energie" | "klid" | "rodina";
+/** Otázka 2 = stav trávení. Určuje gut pilíř — jde vždy na začátek výběru. */
+export type OdpovedQ2 = "hodinky" | "nafoukle" | "pomale" | "citlive";
+/** Otázka 3 = formát snídaně. Určuje jádro talíře (3–4 produkty). */
+export type OdpovedQ3 = "miska" | "slana" | "lehka" | "rychla";
 
 export type Moznost<T extends string> = {
   hodnota: T;
@@ -239,82 +242,103 @@ export type Moznost<T extends string> = {
 };
 
 export const HOOK =
-  "Sestav si královskou snídani — 3 otázky, 30 vteřin, sleva 21 % na míru.";
+  "Zdraví, trávení a královská snídaně — 3 otázky, 30 vteřin, sleva 21 % na míru.";
 
-export const OTAZKA_1_TEXT = "Jak vypadá tvoje ráno?";
+export const OTAZKA_1_TEXT = "Co je pro tebe v životě nejdůležitější?";
 export const OTAZKA_1: Moznost<OdpovedQ1>[] = [
-  { hodnota: "rychle", emoji: "⏰", text: "Spěch — káva na stojáka" },
-  { hodnota: "energie", emoji: "😴", text: "Dlouho se rozjíždím" },
-  { hodnota: "ritual", emoji: "🥣", text: "Snídám v klidu" },
-  { hodnota: "protein", emoji: "🏃", text: "Ráno makám / trénink" },
+  { hodnota: "zdravi", emoji: "🫀", text: "Zdraví a dlouhověkost" },
+  { hodnota: "energie", emoji: "⚡", text: "Energie na rozdávání" },
+  { hodnota: "klid", emoji: "🧘", text: "Klid v hlavě a pohoda" },
+  { hodnota: "rodina", emoji: "👨‍👩‍👧‍👦", text: "Rodina a lidi kolem mě" },
 ];
 
-export const OTAZKA_2_TEXT = "Na jakou chuť se ráno těšíš?";
+export const OTAZKA_2_TEXT = "Jak funguje tvoje trávení?";
 export const OTAZKA_2: Moznost<OdpovedQ2>[] = [
-  { hodnota: "coko", emoji: "🍫", text: "Čokoládová" },
-  { hodnota: "ovoce", emoji: "🥭", text: "Ovocná a svěží" },
-  { hodnota: "kokos", emoji: "🥥", text: "Čistě kokosová" },
-  { hodnota: "slana", emoji: "🧂", text: "Slaná" },
+  { hodnota: "hodinky", emoji: "👌", text: "Šlape jak hodinky" },
+  { hodnota: "nafoukle", emoji: "🎈", text: "Po jídle nafouklé břicho" },
+  { hodnota: "pomale", emoji: "🐢", text: "Pomalé a líné" },
+  { hodnota: "citlive", emoji: "🌶️", text: "Citlivé — reaguje na kdeco" },
 ];
 
-export const OTAZKA_3_TEXT = "Co dodá tvé snídani královskou korunu?";
+export const OTAZKA_3_TEXT = "Jaká má být tvoje královská snídaně?";
 export const OTAZKA_3: Moznost<OdpovedQ3>[] = [
-  { hodnota: "sila", emoji: "💪", text: "Síla a protein" },
-  { hodnota: "fokus", emoji: "🧠", text: "Klid a fokus" },
-  { hodnota: "streva", emoji: "🦠", text: "Zdravá střeva" },
-  { hodnota: "nic", emoji: "✨", text: "Nic — jen poctivé jídlo" },
+  { hodnota: "miska", emoji: "🥣", text: "Sladká vydatná miska" },
+  { hodnota: "slana", emoji: "🥑", text: "Slaná a poctivá" },
+  { hodnota: "lehka", emoji: "🥥", text: "Lehká a svěží" },
+  { hodnota: "rychla", emoji: "⚡", text: "Rychlá vzpruha do ruky" },
 ];
 
 /* -------------------------------------------------------------------------- */
-/* Doporučení                                                                  */
+/* Doporučení — tři pilíře                                                     */
 /* -------------------------------------------------------------------------- */
 
 const MIN_DOPORUCENI = 6;
 const MAX_DOPORUCENI = 8;
 
+/** Kolik produktů si z každého pilíře bere výběr (v tomhle pořadí). */
+const KVOTA_GUT = 3;
+const KVOTA_FORMAT = 3;
+const KVOTA_AKCENT = 2;
+
 /**
- * „Korunovační“ doplňky k otázce 3 — ručně seřazené, první jsou ty
- * nejvýstižnější. Záměrně jde o krátký kurátorský výběr, ne o filtr.
+ * Gut pilíř podle otázky 2 — mikrobiom šitý na stav trávení. Kurátorský výběr,
+ * ne filtr; pořadí v poli je pořadím na obrazovce.
+ *
+ * `citlive` = podezření na histaminovou intoleranci → Histabiotics první,
+ * pak jen jemné young-coconut varianty. Tenhle pár je věcný, ne kosmetický —
+ * neměň ho bez konzultace.
+ *
+ * Exportováno kvůli `scripts/check-kviz.ts`, který hlídá, že se gut pilíř
+ * vždy propíše do výsledku.
  */
-const KORUNA: Record<Exclude<OdpovedQ3, "nic">, string[]> = {
-  sila: ["PROTEIN", "SC250", "CC250", "BL250", "SIXCH", "SIXBL"],
-  fokus: ["ESSDNM", "CACAO", "SIXCHC", "JECMEN"],
-  streva: [
-    "SYMB",
-    "HISTA60",
-    "SYMB30",
-    "SH10",
-    "HISTA30",
-    "SYMBNOC",
-    "SH30",
-    "KEFIR",
-    "PREM300",
-    "CCG400",
-  ],
+export const GUT_PILIR: Record<OdpovedQ2, string[]> = {
+  hodinky: ["SYMB", "CCG400", "NTR250"],
+  nafoukle: ["CCG400", "NTR250", "KEFIR"],
+  pomale: ["NTR250", "CCG400", "CHIAVAN"],
+  citlive: ["HISTA60", "CCG400", "NTR250"],
 };
 
-function korunovacniProdukty(q3: OdpovedQ3): KvizProdukt[] {
-  if (q3 === "nic") return [];
-  return KORUNA[q3]
+/** Formát snídaně podle otázky 3 — jádro talíře. */
+const FORMAT_PILIR: Record<OdpovedQ3, string[]> = {
+  miska: ["GRNSTR", "GRN250", "CCG150", "MNG250"],
+  slana: ["BURGER", "CHLEBAMA", "TEMPLNT", "PESTO"],
+  lehka: ["VODA3", "VODA1", "NEKTAR2", "CCGYC150"],
+  rychla: ["SIXVNL", "SIXMNG", "SC250", "CCGYC150"],
+};
+
+/** Akcent podle otázky 1 — co si člověk v životě nejvíc hlídá. */
+const AKCENT_PILIR: Record<OdpovedQ1, string[]> = {
+  zdravi: ["ESSDNM", "PREM300", "SYMB30"],
+  energie: ["PROTEIN", "SIXCH", "OLEJ"],
+  klid: ["JECMEN", "CACAO", "SIXCHC"],
+  rodina: ["PREM1000", "MILK17", "JOGURT1L"],
+};
+
+function produktyZeSlugu(slugy: string[]): KvizProdukt[] {
+  return slugy
     .map((slug) => najitProdukt(slug))
     .filter((p): p is KvizProdukt => p !== undefined);
 }
 
 /**
- * Doporučí 6–8 produktů pro královskou snídani.
+ * Doporučí 6–8 unikátních produktů pro královskou snídani — deterministicky,
+ * bez náhody.
  *
- * Otázka 1 určí primární sadu, otázka 2 ji seřadí podle chuti (a doplní
- * 2 chuťové tipy mimo sadu), otázka 3 přidá 1–2 korunovační doplňky.
- * Primární sada je vždy první.
+ * Pořadí pilířů: gut (Q2) → formát snídaně (Q3) → akcent (Q1). Zdravotní část
+ * je tak vždy první na obrazovce.
+ *
+ * Slugy v pilířích jsou navržené tak, aby se mezi sebou nepřekrývaly — výsledek
+ * proto vychází na rovných 8. Dorovnání na `MIN_DOPORUCENI` je pojistka pro
+ * případ, že někdo pilíře později přepíše na překrývající se sady.
  */
 export function doporucitProdukty(
   q1: OdpovedQ1,
   q2: OdpovedQ2,
   q3: OdpovedQ3,
 ): KvizProdukt[] {
-  const primarni = PRODUKTY.filter((p) => p.rano?.includes(q1));
-  const chutove = PRODUKTY.filter((p) => p.chut?.includes(q2));
-  const sediChut = (p: KvizProdukt): boolean => p.chut?.includes(q2) === true;
+  const gut = produktyZeSlugu(GUT_PILIR[q2]);
+  const formatSnidane = produktyZeSlugu(FORMAT_PILIR[q3]);
+  const akcent = produktyZeSlugu(AKCENT_PILIR[q1]);
 
   const vybrane: KvizProdukt[] = [];
   const pridat = (zdroj: KvizProdukt[], kolik: number): void => {
@@ -327,23 +351,14 @@ export function doporucitProdukty(
     }
   };
 
-  // Primární sada seřazená tak, aby chuťově sedící produkty šly první.
-  pridat(
-    [...primarni.filter(sediChut), ...primarni.filter((p) => !sediChut(p))],
-    4,
-  );
-  pridat(chutove, 2);
-  pridat(korunovacniProdukty(q3), 2);
+  pridat(gut, KVOTA_GUT);
+  pridat(formatSnidane, KVOTA_FORMAT);
+  pridat(akcent, KVOTA_AKCENT);
 
-  // Dorovnání na minimum — nejdřív primární sada, pak chuť, pak zbytek katalogu.
-  if (vybrane.length < MIN_DOPORUCENI) {
-    pridat(primarni, MIN_DOPORUCENI - vybrane.length);
-  }
-  if (vybrane.length < MIN_DOPORUCENI) {
-    pridat(chutove, MIN_DOPORUCENI - vybrane.length);
-  }
-  if (vybrane.length < MIN_DOPORUCENI) {
-    pridat(PRODUKTY, MIN_DOPORUCENI - vybrane.length);
+  // Pojistka: dorovnání na minimum ze zbytku pilířů, až úplně nakonec z katalogu.
+  for (const zdroj of [formatSnidane, gut, akcent, PRODUKTY]) {
+    if (vybrane.length >= MIN_DOPORUCENI) break;
+    pridat(zdroj, MIN_DOPORUCENI - vybrane.length);
   }
 
   return vybrane;

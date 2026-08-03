@@ -42,6 +42,11 @@ const ODESILATEL = "Longevity Bar <bar@updates.wildandcoco.com>";
 const RESEND_URL = "https://api.resend.com/emails";
 const EMAIL_TIMEOUT_MS = 8000;
 
+/** Kam jde upozornění, že osobní kupón nevznikl. */
+const NOTIFIKACE_KOMU = "atrey@wildandcoco.com";
+/** Kratší než u kupónového e-mailu — notifikace nesmí zdržet odpověď hostovi. */
+const NOTIFIKACE_TIMEOUT_MS = 4000;
+
 function text(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === "string" ? v.trim() : "";
@@ -87,10 +92,12 @@ export async function odeslatKvizLead(
 
   // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
   // bez limitu počtu objednávek. Když API e-shopu neodpoví, spadneme na
-  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje).
-  const osobniKod = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
-  const kod = osobniKod ?? sdilenyKod;
-  const podminky = osobniKod ? KUPON_PODMINKY : KUPON_PODMINKY_FALLBACK;
+  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje) a pošleme
+  // o tom notifikaci — tichý fallback by se na festivalu nikdy nezjistil.
+  const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
+  const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
+  const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
+  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
 
   /* --- Rate-limit + zápis leadu ------------------------------------------ */
   // Vše kolem databáze je v try/catch: výjimka ze server action by vyhodila
@@ -135,8 +142,23 @@ export async function odeslatKvizLead(
     return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
   }
 
-  /* --- E-mail (best-effort) ---------------------------------------------- */
-  const emailOdeslan = await poslatKupon({ email, jmeno, kod, produkt, podminky });
+  /* --- E-maily (best-effort) --------------------------------------------- */
+  // Paralelně, ať notifikace o fallbacku nepřidá návštěvníkovi ani vteřinu.
+  // Obě funkce si chyby řeší samy a nikdy nevyhodí výjimku.
+  const [emailOdeslan] = await Promise.all([
+    poslatKupon({ email, jmeno, kod, produkt, podminky }),
+    duvodFallbacku
+      ? oznamitFallback({
+          bavic,
+          produkt,
+          jmeno,
+          email,
+          telefon,
+          sdilenyKod,
+          duvod: duvodFallbacku,
+        })
+      : Promise.resolve(),
+  ]);
 
   return {
     stav: "ok",
@@ -156,9 +178,15 @@ export async function odeslatKvizLead(
 const CARE_API_URL = "https://www.wildandcoco.com/care-api/v1/coupons";
 const CARE_API_TIMEOUT_MS = 8000;
 
+/** Výsledek pokusu o osobní kupón — buď kód, nebo lidsky čitelný důvod selhání. */
+type VysledekOsobnihoKuponu = { kod: string } | { chyba: string };
+
 /**
- * Založí v e-shopu kupón vázaný na e-mail návštěvníka. Vrací kód kupónu,
- * při jakémkoli selhání null — flow pak pokračuje se sdíleným kódem.
+ * Založí v e-shopu kupón vázaný na e-mail návštěvníka.
+ *
+ * NIKDY nevyhodí výjimku — při jakémkoli selhání vrací `{ chyba }` s krátkým
+ * důvodem, který jde rovnou do notifikačního e-mailu. Volající pak pokračuje
+ * se sdíleným kódem.
  */
 async function vytvoritOsobniKupon({
   bavic,
@@ -170,22 +198,22 @@ async function vytvoritOsobniKupon({
   produkt: KvizProdukt;
   email: string;
   sdilenyKod: string;
-}): Promise<string | null> {
+}): Promise<VysledekOsobnihoKuponu> {
   const user = process.env.CS_CARE_USER;
   const password = process.env.CS_CARE_PASSWORD;
   if (!user || !password) {
     console.warn("[kviz] CS_CARE_USER/PASSWORD chybí — jede sdílený kupón.");
-    return null;
+    return { chyba: "chybí CS_CARE_USER/CS_CARE_PASSWORD" };
   }
 
-  // Náhodný suffix odliší personalizované kódy od sdílených a mezi sebou.
-  const suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
-    .map((b) => "ABCDEFGHJKMNPQRSTVWXYZ23456789"[b % 30])
-    .join("");
-  const kod = `${sdilenyKod}-${suffix}`;
-  const dnes = new Date().toISOString().slice(0, 10);
-
   try {
+    // Náhodný suffix odliší personalizované kódy od sdílených a mezi sebou.
+    const suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+      .map((b) => "ABCDEFGHJKMNPQRSTVWXYZ23456789"[b % 30])
+      .join("");
+    const kod = `${sdilenyKod}-${suffix}`;
+    const dnes = new Date().toISOString().slice(0, 10);
+
     const odpoved = await fetch(CARE_API_URL, {
       method: "POST",
       headers: {
@@ -213,15 +241,26 @@ async function vytvoritOsobniKupon({
 
     if (!odpoved.ok) {
       const detail = await odpoved.text().catch(() => "");
-      console.warn("[kviz] care-api odmítl kupón:", odpoved.status, detail.slice(0, 200));
-      return null;
+      const chyba = `HTTP ${odpoved.status}: ${detail.slice(0, 200)}`;
+      console.warn("[kviz] care-api odmítl kupón:", chyba);
+      return { chyba };
     }
     const data = (await odpoved.json()) as { code?: string };
-    return typeof data.code === "string" ? data.code : kod;
+    return { kod: typeof data.code === "string" ? data.code : kod };
   } catch (e) {
-    console.warn("[kviz] care-api nedostupné:", e);
-    return null;
+    const chyba = popisChyby(e, CARE_API_TIMEOUT_MS);
+    console.warn("[kviz] care-api nedostupné:", chyba);
+    return { chyba };
   }
+}
+
+/** `AbortSignal.timeout` hází DOMException `TimeoutError` — přeložíme do češtiny. */
+function popisChyby(e: unknown, timeoutMs: number): string {
+  if (e instanceof Error) {
+    if (e.name === "TimeoutError") return `timeout po ${timeoutMs / 1000} s`;
+    return e.message || e.name;
+  }
+  return String(e);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -277,6 +316,91 @@ async function poslatKupon({
   } catch (e) {
     console.warn("[kviz] odeslání e-mailu selhalo:", e);
     return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notifikace o fallbacku na sdílený kupón                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Upozorní nás, že osobní kupón nevznikl a host dostal sdílený kód.
+ *
+ * Čistě best-effort: nikdy nevyhodí výjimku a nikdy nemění výsledek pro hosta.
+ * Běží paralelně s kupónovým e-mailem a s vlastním kratším timeoutem, aby
+ * serverless funkci neprotáhla přes limit.
+ */
+async function oznamitFallback({
+  bavic,
+  produkt,
+  jmeno,
+  email,
+  telefon,
+  sdilenyKod,
+  duvod,
+}: {
+  bavic: Bavic;
+  produkt: KvizProdukt;
+  jmeno: string;
+  email: string;
+  telefon: string;
+  sdilenyKod: string;
+  duvod: string;
+}): Promise<void> {
+  const klic = process.env.RESEND_API_KEY;
+  if (!klic) {
+    console.warn("[kviz] RESEND_API_KEY chybí — notifikaci o fallbacku neposíláme.");
+    return;
+  }
+
+  const cas = new Date().toLocaleString("cs-CZ", {
+    timeZone: "Europe/Prague",
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+
+  const telo = [
+    "Osobní kupón se nepodařilo založit — host dostal SDÍLENÝ kód.",
+    "",
+    `Bavič:   ${bavic.kod} — ${bavic.jmeno}`,
+    `Produkt: ${produkt.nazev} (slug ${produkt.slug}, CS kód ${produkt.kod})`,
+    `Lead:    ${jmeno} · ${email} · ${telefon}`,
+    `Kód:     ${sdilenyKod}`,
+    `Důvod:   ${duvod}`,
+    `Čas:     ${cas} (Europe/Prague)`,
+    "",
+    `Sdílený kupón má přísnější podmínky: ${KUPON_PODMINKY_FALLBACK}`,
+  ].join("\n");
+
+  try {
+    const odpoved = await fetch(RESEND_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${klic}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: ODESILATEL,
+        to: [NOTIFIKACE_KOMU],
+        subject: `⚠️ Kvíz: fallback na sdílený kupón (${bavic.kod})`,
+        text: telo,
+      }),
+      signal: AbortSignal.timeout(NOTIFIKACE_TIMEOUT_MS),
+    });
+
+    if (!odpoved.ok) {
+      const detail = await odpoved.text().catch(() => "");
+      console.warn(
+        "[kviz] Resend odmítl notifikaci o fallbacku:",
+        odpoved.status,
+        detail.slice(0, 200),
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[kviz] notifikaci o fallbacku se nepodařilo odeslat:",
+      popisChyby(e, NOTIFIKACE_TIMEOUT_MS),
+    );
   }
 }
 
