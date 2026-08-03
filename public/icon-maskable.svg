@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Longevity Bar">
+  <defs>
+    <linearGradient id="pozadiM" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0e8781"/>
+      <stop offset="55%" stop-color="#06403d"/>
+      <stop offset="100%" stop-color="#042b29"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#pozadiM)"/>
+  <!-- bezpečná zóna: obsah v kruhu o průměru ~80 % plochy -->
+  <circle cx="256" cy="262" r="96" fill="#7a4a2b"/>
+  <circle cx="256" cy="262" r="74" fill="#fdf3e3"/>
+  <path d="M191 280c19 16 40 23 65 23s46-7 65-23" fill="none" stroke="#e8d3b2" stroke-width="8" stroke-linecap="round"/>
+  <path d="M256 168c-28-31-67-38-99-22 25 22 61 31 99 22z" fill="#25a35a"/>
+  <path d="M256 168c22-33 61-45 96-32-22 25-57 38-96 32z" fill="#1b7a43"/>
+</svg>

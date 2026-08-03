@@ -1,0 +1,26 @@
+{
+  "name": "Longevity Bar — věrnostní karta",
+  "short_name": "Longevity Bar",
+  "description": "Sbírej razítka za nákupy na Longevity Baru a vyzvedni si odměnu.",
+  "lang": "cs",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#042b29",
+  "theme_color": "#042b29",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

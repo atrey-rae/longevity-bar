@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Longevity Bar">
+  <defs>
+    <linearGradient id="pozadi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0e8781"/>
+      <stop offset="55%" stop-color="#06403d"/>
+      <stop offset="100%" stop-color="#042b29"/>
+    </linearGradient>
+    <radialGradient id="slunce" cx="0.5" cy="0.15" r="0.8">
+      <stop offset="0%" stop-color="#ffc247" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffc247" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="skorapka" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#7a4a2b"/>
+      <stop offset="100%" stop-color="#4a2a15"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#pozadi)"/>
+  <rect width="512" height="512" rx="112" fill="url(#slunce)"/>
+
+  <!-- kokos -->
+  <circle cx="256" cy="268" r="132" fill="url(#skorapka)"/>
+  <circle cx="256" cy="268" r="104" fill="#fdf3e3"/>
+  <circle cx="256" cy="268" r="104" fill="none" stroke="#e8d3b2" stroke-width="6"/>
+
+  <!-- dužina / vlnka -->
+  <path d="M164 292c26 22 56 32 92 32s66-10 92-32" fill="none" stroke="#e8d3b2" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- brčko -->
+  <rect x="286" y="96" width="26" height="180" rx="13" transform="rotate(18 299 186)" fill="#ff6b35"/>
+
+  <!-- lístky -->
+  <path d="M256 148c-38-42-92-52-136-30 34 30 84 42 136 30z" fill="#25a35a"/>
+  <path d="M256 148c30-46 84-62 132-44-30 34-78 52-132 44z" fill="#1b7a43"/>
+
+  <!-- jiskra -->
+  <path d="M392 128l9 25 25 9-25 9-9 25-9-25-25-9 25-9z" fill="#ffc247"/>
+</svg>

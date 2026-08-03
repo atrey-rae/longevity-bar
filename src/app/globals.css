@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-laguna-900 text-kokos-50 antialiased;
+    background-image:
+      radial-gradient(
+        ellipse 120% 80% at 50% -10%,
+        rgba(255, 171, 18, 0.22),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 90% 60% at 90% 15%,
+        rgba(255, 107, 53, 0.18),
+        transparent 65%
+      ),
+      linear-gradient(180deg, #042b29 0%, #06403d 45%, #08544f 100%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  /* Velká, dobře čitelná typografie — appka se používá venku na slunci. */
+  h1 {
+    @apply text-3xl font-black leading-tight tracking-tight;
+  }
+  h2 {
+    @apply text-xl font-extrabold leading-snug;
+  }
+
+  ::selection {
+    @apply bg-mango-400 text-inkoust;
+  }
+}
+
+@layer components {
+  .obal {
+    @apply mx-auto w-full max-w-[30rem] px-4;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .karta {
+    @apply rounded-3xl border border-white/15 bg-white/10 p-5 shadow-karta backdrop-blur-sm;
+  }
+
+  .karta-svetla {
+    @apply rounded-3xl border border-black/5 bg-kokos-50 p-5 text-inkoust shadow-karta;
+  }
+
+  /* Primární akce — velká, palcem ovladatelná, vysoký kontrast */
+  .tlacitko {
+    @apply flex min-h-[3.75rem] w-full items-center justify-center gap-2 rounded-2xl
+           px-6 text-center text-lg font-extrabold uppercase tracking-wide
+           transition active:translate-y-[2px] active:shadow-none;
+  }
+
+  .tlacitko-hlavni {
+    @apply tlacitko bg-mango-400 text-inkoust shadow-tlacitko hover:bg-mango-500;
+  }
+
+  .tlacitko-zapad {
+    @apply tlacitko bg-zapad-500 text-white shadow-tlacitko hover:bg-zapad-600;
+  }
+
+  .tlacitko-vedlejsi {
+    @apply tlacitko border-2 border-white/30 bg-white/10 text-kokos-50 hover:bg-white/20;
+  }
+
+  .tlacitko-svetle {
+    @apply tlacitko bg-white text-inkoust shadow-tlacitko hover:bg-kokos-100;
+  }
+
+  .odznak {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider;
+  }
+
+  .vstup {
+    @apply w-full rounded-2xl border-2 border-white/25 bg-white/95 px-4 py-4 text-lg
+           font-semibold text-inkoust placeholder:font-normal placeholder:text-inkoust/40
+           focus:border-mango-400 focus:outline-none focus:ring-4 focus:ring-mango-400/40;
+  }
+
+  .odkaz {
+    @apply underline decoration-mango-400/60 decoration-2 underline-offset-4 hover:decoration-mango-400;
+  }
+}
+
+@layer utilities {
+  .text-stin {
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Živý přeliv „vstupenky“ — důkaz, že jde o živou obrazovku, ne screenshot */
+  .zivy-preliv {
+    background: linear-gradient(
+      110deg,
+      #0e8781 0%,
+      #24a49e 20%,
+      #ffab12 45%,
+      #ff6b35 65%,
+      #24a49e 85%,
+      #0e8781 100%
+    );
+    background-size: 300% 300%;
+    animation: prelivHoni 6s ease infinite;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Tisk — stránka /admin/dny/[id]/tisk
+   --------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .tisk-list {
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    break-inside: avoid;
+  }
+
+  .tisk-qr svg {
+    width: 150mm !important;
+    height: 150mm !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Respekt k nastavení „omezit pohyb“
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
