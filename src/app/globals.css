@@ -140,9 +140,13 @@
     break-inside: avoid;
   }
 
+  .tisk-qr {
+    max-width: 140mm !important;
+  }
+
   .tisk-qr svg {
-    width: 150mm !important;
-    height: 150mm !important;
+    width: 100% !important;
+    height: auto !important;
   }
 }
 

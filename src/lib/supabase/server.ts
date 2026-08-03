@@ -1,16 +1,17 @@
-import { createServerClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import type { Database } from "@/lib/types";
 import { supabaseAnonKey, supabaseUrl } from "./env";
+
+type ServerKlient = ReturnType<typeof createServerClient<Database>>;
 
 /**
  * Serverový klient s identitou přihlášeného uživatele (anon klíč + cookies).
  * Používá se JEN pro čtení dat pod RLS a pro zjištění přihlášeného uživatele.
  * Veškeré zápisy herní logiky jdou přes `createAdminClient()`.
  */
-export async function createServerSupabase(): Promise<SupabaseClient<Database>> {
+export async function createServerSupabase(): Promise<ServerKlient> {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(supabaseUrl(), supabaseAnonKey(), {
@@ -18,7 +19,13 @@ export async function createServerSupabase(): Promise<SupabaseClient<Database>> 
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(
+        cookiesToSet: {
+          name: string;
+          value: string;
+          options: CookieOptions;
+        }[],
+      ) {
         try {
           for (const { name, value, options } of cookiesToSet) {
             cookieStore.set(name, value, options);

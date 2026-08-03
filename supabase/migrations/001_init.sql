@@ -6,7 +6,8 @@
 -- Migrace je idempotentní (lze pustit opakovaně).
 -- ============================================================================
 
-create extension if not exists pgcrypto;
+-- Pozn.: `gen_random_uuid()` je od PostgreSQL 13 součástí jádra,
+-- migrace tedy nepotřebuje žádné rozšíření ani superuser práva.
 
 -- ----------------------------------------------------------------------------
 -- ENUMy
@@ -40,8 +41,9 @@ create table if not exists public.event_days (
   id          uuid primary key default gen_random_uuid(),
   date        date not null unique,
   label       text,
+  -- náhodný URL-safe token (20 hex znaků ≈ 80 bitů entropie)
   token       text not null unique
-                default replace(replace(encode(gen_random_bytes(12), 'base64'), '/', '_'), '+', '-'),
+                default substr(replace(gen_random_uuid()::text, '-', ''), 1, 20),
   active      boolean not null default true,
   created_at  timestamptz not null default now()
 );
@@ -140,7 +142,7 @@ begin
   )
   on conflict (id) do update
     set email     = excluded.email,
-        full_name = coalesce(public.profiles.full_name, excluded.full_name);
+        full_name = coalesce(profiles.full_name, excluded.full_name);
   return new;
 end;
 $$;
@@ -253,7 +255,7 @@ on conflict (category, name) do nothing;
 
 -- ============================================================================
 -- SEED — festivalové dny (Healing Festival 5. 8. – 9. 8. 2026)
--- Token se generuje náhodně z DEFAULTu sloupce (URL-safe base64 z 12 bajtů).
+-- Token se generuje náhodně z DEFAULTu sloupce (20 hex znaků, URL-safe).
 -- QR kódy k tisku najde obsluha v /admin/dny → „Tisk QR“.
 -- ============================================================================
 insert into public.event_days (date, label, active) values

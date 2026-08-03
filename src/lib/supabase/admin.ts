@@ -1,9 +1,11 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/types";
 import { supabaseServiceRoleKey, supabaseUrl } from "./env";
 
-let cached: SupabaseClient<Database> | null = null;
+type AdminKlient = ReturnType<typeof createClient<Database>>;
+
+let cached: AdminKlient | null = null;
 
 /**
  * SERVICE-ROLE klient — obchází RLS.
@@ -14,7 +16,7 @@ let cached: SupabaseClient<Database> | null = null;
  *
  * Vytváří se lazy, aby build prošel i bez klíčů.
  */
-export function createAdminClient(): SupabaseClient<Database> {
+export function createAdminClient(): AdminKlient {
   if (cached) return cached;
   cached = createClient<Database>(supabaseUrl(), supabaseServiceRoleKey(), {
     auth: {

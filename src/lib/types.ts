@@ -6,14 +6,14 @@
 export type ProductCategory = "cocofir" | "coco_water" | "drink";
 export type RewardState = "ready" | "selected" | "redeemed";
 
-export interface Profile {
+export type Profile = {
   id: string;
   email: string | null;
   full_name: string | null;
   created_at: string;
 }
 
-export interface EventDay {
+export type EventDay = {
   id: string;
   date: string; // YYYY-MM-DD
   label: string | null;
@@ -22,7 +22,7 @@ export interface EventDay {
   created_at: string;
 }
 
-export interface Stamp {
+export type Stamp = {
   id: string;
   user_id: string;
   day_id: string | null;
@@ -31,7 +31,7 @@ export interface Stamp {
   created_at: string;
 }
 
-export interface Product {
+export type Product = {
   id: string;
   category: ProductCategory;
   name: string;
@@ -42,7 +42,7 @@ export interface Product {
   created_at: string;
 }
 
-export interface Reward {
+export type Reward = {
   id: string;
   user_id: string;
   tier_index: number;
@@ -55,50 +55,62 @@ export interface Reward {
   created_at: string;
 }
 
-export interface Setting {
+export type Setting = {
   key: string;
   value: unknown;
   updated_at: string;
 }
 
+/**
+ * Tvar tabulky očekávaný `@supabase/postgrest-js`.
+ * Vztahy (`Relationships`) nepoužíváme — vnořené selecty nikde neděláme,
+ * data spojujeme v aplikaci (objem dat je na festivalu malý).
+ */
+type Tabulka<Row, Insert, Update> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+  Relationships: [];
+};
+
 /** Minimalistický typ databáze pro `@supabase/supabase-js`. */
 export interface Database {
   public: {
     Tables: {
-      profiles: {
-        Row: Profile;
-        Insert: Partial<Profile> & { id: string };
-        Update: Partial<Profile>;
-      };
-      event_days: {
-        Row: EventDay;
-        Insert: Partial<EventDay> & { date: string };
-        Update: Partial<EventDay>;
-      };
-      stamps: {
-        Row: Stamp;
-        Insert: Partial<Stamp> & { user_id: string };
-        Update: Partial<Stamp>;
-      };
-      products: {
-        Row: Product;
-        Insert: Partial<Product> & { category: ProductCategory; name: string };
-        Update: Partial<Product>;
-      };
-      rewards: {
-        Row: Reward;
-        Insert: Partial<Reward> & {
+      profiles: Tabulka<
+        Profile,
+        Partial<Profile> & { id: string },
+        Partial<Profile>
+      >;
+      event_days: Tabulka<
+        EventDay,
+        Partial<EventDay> & { date: string },
+        Partial<EventDay>
+      >;
+      stamps: Tabulka<
+        Stamp,
+        Partial<Stamp> & { user_id: string },
+        Partial<Stamp>
+      >;
+      products: Tabulka<
+        Product,
+        Partial<Product> & { category: ProductCategory; name: string },
+        Partial<Product>
+      >;
+      rewards: Tabulka<
+        Reward,
+        Partial<Reward> & {
           user_id: string;
           tier_index: number;
           category: ProductCategory;
-        };
-        Update: Partial<Reward>;
-      };
-      settings: {
-        Row: Setting;
-        Insert: { key: string; value: unknown; updated_at?: string };
-        Update: Partial<Setting>;
-      };
+        },
+        Partial<Reward>
+      >;
+      settings: Tabulka<
+        Setting,
+        { key: string; value: unknown; updated_at?: string },
+        Partial<Setting>
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
