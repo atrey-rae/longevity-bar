@@ -51,4 +51,5 @@ jinak. Poslední sekce se doplňuje při každém dalším release.
 | 4. 8. ~02:40 | kvíz v2 otázky + fallback notifikace | 9316c3e | e2e kupón 15593, 64/64 |
 | 4. 8. ~03:10 | Q3 nesnídám + zkratka oblíbený | 0d4a15c | 80/80 + live klik |
 | 4. 8. ~07:30 | mikrobiom framing + GDPR | 303673e | live intro + /pravidla |
-| _(doplnit)_ | W&C design pass | _(commit po review)_ | _(tsc + 80/80 + screenshoty)_ |
+| 4. 8. ~09:45 | W&C design pass (mobil ~6,0→~8,9, a11y AA, texty beze změny) | 07f8d79 | tsc EXIT 0 · check-kviz 80/80 · live mobil screenshoty úvod+Q2 · /dev-vyhra smazána |
+| 4. 8. ~09:50 | handoff dokumentace (Task Pack, RUNBOOK, README §9) | 5bcf32c | gitleaks no leaks · cold-start soubory kompletní |
