@@ -1,8 +1,8 @@
 /**
  * Kontrola doporučovací logiky kvízu.
  *
- * Projde všech 4 × 4 × 4 = 64 kombinací odpovědí a ověří, že výsledek je
- * použitelný na obrazovce i v kupónu:
+ * Projde všechny kombinace odpovědí (aktuálně 4 × 4 × 5 = 80) a ověří, že
+ * výsledek je použitelný na obrazovce i v kupónu:
  *   1. 6–8 produktů,
  *   2. každý slug existuje v katalogu,
  *   3. žádné duplicity,

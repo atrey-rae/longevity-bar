@@ -233,13 +233,16 @@ export type OdpovedQ1 = "zdravi" | "energie" | "klid" | "rodina";
 /** Otázka 2 = stav trávení. Určuje gut pilíř — jde vždy na začátek výběru. */
 export type OdpovedQ2 = "hodinky" | "nafoukle" | "pomale" | "citlive";
 /** Otázka 3 = formát snídaně. Určuje jádro talíře (3–4 produkty). */
-export type OdpovedQ3 = "miska" | "slana" | "lehka" | "rychla";
+export type OdpovedQ3 = "miska" | "slana" | "lehka" | "rychla" | "nesnidam";
 
 export type Moznost<T extends string> = {
   hodnota: T;
   emoji: string;
   text: string;
 };
+
+/** Zkratka mimo otázky — člověk už ví, co chce, a jde rovnou na celý katalog. */
+export const OBLIBENY_TEXT = "Už mám svůj oblíbený WILD&COCO produkt!";
 
 export const HOOK =
   "Zdraví, trávení a královská snídaně — 3 otázky, 30 vteřin, sleva 21 % na míru.";
@@ -260,12 +263,14 @@ export const OTAZKA_2: Moznost<OdpovedQ2>[] = [
   { hodnota: "citlive", emoji: "🌶️", text: "Citlivé — reaguje na kdeco" },
 ];
 
-export const OTAZKA_3_TEXT = "Jaká má být tvoje královská snídaně?";
+export const OTAZKA_3_TEXT =
+  "Jak vypadá tvoje snídaně snů, kterou si chceš dávat každý den?";
 export const OTAZKA_3: Moznost<OdpovedQ3>[] = [
   { hodnota: "miska", emoji: "🥣", text: "Sladká vydatná miska" },
   { hodnota: "slana", emoji: "🥑", text: "Slaná a poctivá" },
   { hodnota: "lehka", emoji: "🥥", text: "Lehká a svěží" },
   { hodnota: "rychla", emoji: "⚡", text: "Rychlá vzpruha do ruky" },
+  { hodnota: "nesnidam", emoji: "☕", text: "Nesnídám — maximálně kafe" },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -275,8 +280,7 @@ export const OTAZKA_3: Moznost<OdpovedQ3>[] = [
 const MIN_DOPORUCENI = 6;
 const MAX_DOPORUCENI = 8;
 
-/** Kolik produktů si z každého pilíře bere výběr (v tomhle pořadí). */
-const KVOTA_GUT = 3;
+/** Kolik produktů si z každého pilíře bere výběr (gut pilíř jde vždy celý). */
 const KVOTA_FORMAT = 3;
 const KVOTA_AKCENT = 2;
 
@@ -293,17 +297,24 @@ const KVOTA_AKCENT = 2;
  */
 export const GUT_PILIR: Record<OdpovedQ2, string[]> = {
   hodinky: ["SYMB", "CCG400", "NTR250"],
-  nafoukle: ["CCG400", "NTR250", "KEFIR"],
+  nafoukle: ["CCG400", "HISTA60", "NTR250", "KEFIR"],
   pomale: ["NTR250", "CCG400", "CHIAVAN"],
   citlive: ["HISTA60", "CCG400", "NTR250"],
 };
 
-/** Formát snídaně podle otázky 3 — jádro talíře. */
+/**
+ * Formát snídaně podle otázky 3 — jádro talíře.
+ *
+ * `nesnidam` = člověk snídani vynechává → věci, co se vejdou do kávy nebo
+ * do ruky bez talíře: Essential Dynamic do kávy, protein, mladý ječmen,
+ * probiotika (Atreyovo zadání 4. 8.).
+ */
 const FORMAT_PILIR: Record<OdpovedQ3, string[]> = {
   miska: ["GRNSTR", "GRN250", "CCG150", "MNG250"],
   slana: ["BURGER", "CHLEBAMA", "TEMPLNT", "PESTO"],
   lehka: ["VODA3", "VODA1", "NEKTAR2", "CCGYC150"],
   rychla: ["SIXVNL", "SIXMNG", "SC250", "CCGYC150"],
+  nesnidam: ["ESSDNM", "PROTEIN", "JECMEN", "SYMB"],
 };
 
 /** Akcent podle otázky 1 — co si člověk v životě nejvíc hlídá. */
@@ -351,7 +362,10 @@ export function doporucitProdukty(
     }
   };
 
-  pridat(gut, KVOTA_GUT);
+  // Gut pilíř jde celý — kurátorské sady mají 3–4 položky (nafouklé břicho
+  // má navíc Histabiotics). Případný přetlak ořízne strop MAX_DOPORUCENI
+  // na úkor akcentu, zdravotní část má přednost.
+  pridat(gut, gut.length);
   pridat(formatSnidane, KVOTA_FORMAT);
   pridat(akcent, KVOTA_AKCENT);
 

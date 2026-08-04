@@ -7,13 +7,14 @@ import Konfety from "@/components/Konfety";
 import {
   ESHOP_URL,
   HOOK,
-  KUPON_PODMINKY,
+  OBLIBENY_TEXT,
   OTAZKA_1,
   OTAZKA_1_TEXT,
   OTAZKA_2,
   OTAZKA_2_TEXT,
   OTAZKA_3,
   OTAZKA_3_TEXT,
+  PRODUKTY,
   SLEVA_PROCENT,
   doporucitProdukty,
   type Bavic,
@@ -44,6 +45,9 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
   const [q2, setQ2] = useState<OdpovedQ2 | null>(null);
   const [doporucene, setDoporucene] = useState<KvizProdukt[]>([]);
   const [produkt, setProdukt] = useState<KvizProdukt | null>(null);
+  // Zkratka „už mám oblíbený produkt“ — přeskočí zbytek otázek na celý katalog.
+  const [oblibeny, setOblibeny] = useState(false);
+  const [oblibenyZ, setOblibenyZ] = useState<Krok>("q1");
 
   const [jmeno, setJmeno] = useState("");
   const [email, setEmail] = useState("");
@@ -57,17 +61,32 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
   function odpovedetQ3(hodnota: OdpovedQ3) {
     // Sem se dá dostat jen přes q1 a q2, přesto raději pojistka.
     if (!q1 || !q2) return setKrok("q1");
+    setOblibeny(false);
     setDoporucene(doporucitProdukty(q1, q2, hodnota));
     setKrok("vyber");
+  }
+
+  function vybratOblibeny() {
+    setOblibenyZ(krok);
+    setOblibeny(true);
+    setDoporucene(PRODUKTY);
+    setKrok("vyber");
+  }
+
+  function zpet() {
+    // Ze zkratky se vracíme na otázku, ze které člověk odbočil.
+    if (krok === "vyber" && oblibeny) {
+      setOblibeny(false);
+      return setKrok(oblibenyZ);
+    }
+    setKrok(PREDCHOZI[krok as Exclude<Krok, "uvod">]);
   }
 
   if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} />;
 
   return (
     <div className="space-y-5">
-      {krok !== "uvod" && (
-        <Hlavicka krok={krok} zpet={() => setKrok(PREDCHOZI[krok])} />
-      )}
+      {krok !== "uvod" && <Hlavicka krok={krok} zpet={zpet} />}
 
       {krok === "uvod" && (
         <section className="space-y-5 text-center">
@@ -108,6 +127,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
               setKrok("q2");
             }}
           />
+          <OblibenaZkratka vybrat={vybratOblibeny} />
         </Otazka>
       )}
 
@@ -120,12 +140,14 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
               setKrok("q3");
             }}
           />
+          <OblibenaZkratka vybrat={vybratOblibeny} />
         </Otazka>
       )}
 
       {krok === "q3" && (
         <Otazka text={OTAZKA_3_TEXT}>
           <Volby moznosti={OTAZKA_3} vybrat={odpovedetQ3} />
+          <OblibenaZkratka vybrat={vybratOblibeny} />
         </Otazka>
       )}
 
@@ -133,11 +155,23 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
         <section className="space-y-4">
           <Konfety kusu={40} />
           <div className="text-center">
-            <h1 className="text-stin">👑 Tvoje královská snídaně</h1>
+            <h1 className="text-stin">
+              {oblibeny ? "💛 Tvůj oblíbený produkt" : "👑 Tvoje královská snídaně"}
+            </h1>
             <p className="mt-2 text-base font-semibold text-kokos-50/85">
-              Tohle tě nastartuje na celý den. Vyber si{" "}
-              <strong className="text-mango-400">jeden produkt</strong> — na něj
-              dostaneš kupón {SLEVA_PROCENT} %.
+              {oblibeny ? (
+                <>
+                  Najdi ten svůj — na{" "}
+                  <strong className="text-mango-400">jeden produkt</strong>{" "}
+                  dostaneš kupón {SLEVA_PROCENT} %.
+                </>
+              ) : (
+                <>
+                  Tohle tě nastartuje na celý den. Vyber si{" "}
+                  <strong className="text-mango-400">jeden produkt</strong> — na
+                  něj dostaneš kupón {SLEVA_PROCENT} %.
+                </>
+              )}
             </p>
           </div>
 
@@ -305,6 +339,30 @@ function Otazka({
       <h1 className="text-stin">{text}</h1>
       {children}
     </section>
+  );
+}
+
+/** Odbočka mimo otázky — graficky odlišená od běžných odpovědí. */
+function OblibenaZkratka({ vybrat }: { vybrat: () => void }) {
+  return (
+    <div className="space-y-3 pt-1">
+      <p
+        className="text-center text-xs font-bold uppercase tracking-widest text-kokos-50/50"
+        aria-hidden
+      >
+        — nebo —
+      </p>
+      <button
+        type="button"
+        onClick={vybrat}
+        className="flex min-h-[3.5rem] w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-mango-400/80 bg-mango-400/10 px-5 py-3 text-center text-base font-extrabold text-mango-400 transition hover:bg-mango-400/20 active:translate-y-[2px]"
+      >
+        <span className="text-2xl" aria-hidden>
+          💛
+        </span>
+        <span className="leading-tight">{OBLIBENY_TEXT}</span>
+      </button>
+    </div>
   );
 }
 
