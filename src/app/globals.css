@@ -26,12 +26,20 @@
     min-height: 100dvh;
   }
 
-  /* Velká, dobře čitelná typografie — appka se používá venku na slunci. */
+  /* Velká, dobře čitelná typografie — appka se používá venku na slunci.
+     Na 375px je 30px příliš: nadpis se láme na 3 řádky a otázka pak nevejde
+     nad fold. Škáluje se proto od 26px a `text-balance` drží rovnoměrný rag. */
   h1 {
-    @apply text-3xl font-black leading-tight tracking-tight;
+    @apply text-[1.625rem] font-black leading-[1.15] tracking-tight sm:text-3xl;
+    text-wrap: balance;
   }
   h2 {
     @apply text-xl font-extrabold leading-snug;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   ::selection {
@@ -53,19 +61,24 @@
     @apply rounded-3xl border border-black/5 bg-kokos-50 p-5 text-inkoust shadow-karta;
   }
 
-  /* Primární akce — velká, palcem ovladatelná, vysoký kontrast */
+  /* Primární akce — velká, palcem ovladatelná, vysoký kontrast.
+     17px + menší tracking: i nejdelší popisek („Nakoupit na wildandcoco.com“)
+     se na 375px vejde na jeden řádek. */
   .tlacitko {
     @apply flex min-h-[3.75rem] w-full items-center justify-center gap-2 rounded-2xl
-           px-6 text-center text-lg font-extrabold uppercase tracking-wide
-           transition active:translate-y-[2px] active:shadow-none;
+           px-5 text-center text-[1.0625rem] font-extrabold uppercase leading-tight
+           tracking-[0.04em] transition active:translate-y-[2px] active:shadow-none;
+    text-wrap: balance;
   }
 
   .tlacitko-hlavni {
     @apply tlacitko bg-mango-400 text-inkoust shadow-tlacitko hover:bg-mango-500;
   }
 
+  /* Tmavý inkoust na oranžové, ne bílá: bílá na #ff6b35 má jen 2,84:1 (pod AA),
+     inkoust má 5,98:1 a drží stejnou logiku jako mangové tlačítko. */
   .tlacitko-zapad {
-    @apply tlacitko bg-zapad-500 text-white shadow-tlacitko hover:bg-zapad-600;
+    @apply tlacitko bg-zapad-500 text-inkoust shadow-tlacitko hover:bg-zapad-400;
   }
 
   .tlacitko-vedlejsi {
@@ -80,9 +93,48 @@
     @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider;
   }
 
+  /* Volba v kvízu — sklo na tmavě zelené. Původní bílá/10 se na slunci ztrácela
+     a vypadala jako neaktivní; přeliv + světlejší okraj vrací afordanci. */
+  .volba {
+    @apply flex min-h-[4rem] w-full items-center gap-3.5 rounded-2xl border
+           border-white/25 bg-gradient-to-b from-white/[0.17] to-white/[0.07] px-4 py-3
+           text-left text-[1.0625rem] font-extrabold leading-snug text-kokos-50
+           shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] transition
+           hover:border-white/40 hover:from-white/[0.24] hover:to-white/[0.12]
+           active:translate-y-[2px];
+  }
+
+  /* Pevná dlaždice pod emoji — sjednotí optickou osu napříč různě širokými glyfy. */
+  .volba-ikona {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl;
+  }
+
+  /* Produktová dlaždice ve výběru — teplá krémová místo čistě bílé (W&C). */
+  .dlazdice {
+    @apply flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl
+           border border-kokos-300/60 bg-kokos-50 p-3 text-center text-inkoust
+           shadow-karta transition hover:border-mango-500 active:translate-y-[2px];
+  }
+
+  /* Kompaktnější varianta pro celý katalog (66 položek) — zkrátí zeď dlaždic,
+     dotyková plocha zůstává přes 100 px. */
+  .dlazdice-mala {
+    @apply dlazdice min-h-[6.5rem] gap-1 p-2.5;
+  }
+
+  /* Oddělovač skupin v katalogu 66 produktů. */
+  .stitek-sekce {
+    @apply flex items-center gap-3 pt-1 text-[0.7rem] font-black uppercase
+           tracking-[0.18em] text-kokos-50/70;
+  }
+  .stitek-sekce::after {
+    content: "";
+    @apply h-px flex-1 bg-white/15;
+  }
+
   .vstup {
-    @apply w-full rounded-2xl border-2 border-white/25 bg-white/95 px-4 py-4 text-lg
-           font-semibold text-inkoust placeholder:font-normal placeholder:text-inkoust/40
+    @apply w-full rounded-2xl border-2 border-transparent bg-kokos-50 px-4 py-4 text-lg
+           font-semibold text-inkoust placeholder:font-normal placeholder:text-inkoust/45
            focus:border-mango-400 focus:outline-none focus:ring-4 focus:ring-mango-400/40;
   }
 
@@ -94,6 +146,23 @@
 @layer utilities {
   .text-stin {
     text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Teplá záře pod hero emoji — zelený mikrob jinak splývá se zeleným pozadím. */
+  .zare {
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 194, 71, 0.28) 0%,
+      rgba(255, 107, 53, 0.12) 45%,
+      transparent 70%
+    );
+  }
+
+  /* Kód kupónu se nesmí lámat uprostřed skupiny — jen na pomlčkách. */
+  .kod-kuponu {
+    overflow-wrap: break-word;
+    word-break: normal;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Živý přeliv „vstupenky“ — důkaz, že jde o živou obrazovku, ne screenshot */

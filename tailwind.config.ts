@@ -19,6 +19,9 @@ const config: Config = {
           900: "#042b29",
         },
         mango: {
+          // 300 = zlatá pro text na světlejších plochách (karta) — #ffc247
+          // tam padá pod WCAG AA (4,21:1), tenhle odstín dává 4,90:1.
+          300: "#ffd67e",
           400: "#ffc247",
           500: "#ffab12",
           600: "#f08c00",

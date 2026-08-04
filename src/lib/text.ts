@@ -26,3 +26,17 @@ export function odmeny(n: number): string {
 export function zakaznici(n: number): string {
   return `${n} ${tvar(n, "zákazník", "zákazníci", "zákazníků")}`;
 }
+
+/**
+ * Česká sazba pro UI — vymění obyčejnou mezeru za nezlomitelnou tam, kde by
+ * zlom vypadal jako chyba („21 %“ na dvou řádcích, rozpadlé datum).
+ * Text se tím NEMĚNÍ, jen se jinak láme.
+ */
+/** Nezlomitelná mezera (U+00A0). */
+const NBSP = "\u00A0";
+
+export function sazba(text: string): string {
+  return text
+    .replace(/(\d)\s(%|‰|Kč|ml|kg|g|l|ks)(?![\p{L}])/gu, `$1${NBSP}$2`)
+    .replace(/(\d{1,2}\.)\s(\d{1,2}\.)\s(\d{4})/g, `$1${NBSP}$2${NBSP}$3`);
+}

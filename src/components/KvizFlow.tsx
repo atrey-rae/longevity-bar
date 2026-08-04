@@ -4,9 +4,11 @@ import { useActionState, useState } from "react";
 
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
 import Konfety from "@/components/Konfety";
+import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
   HOOK,
+  KATEGORIE_LABEL,
   OBLIBENY_TEXT,
   OTAZKA_1,
   OTAZKA_1_TEXT,
@@ -18,6 +20,7 @@ import {
   SLEVA_PROCENT,
   doporucitProdukty,
   type Bavic,
+  type Kategorie,
   type KvizProdukt,
   type Moznost,
   type OdpovedQ1,
@@ -90,32 +93,37 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
       {krok !== "uvod" && <Hlavicka krok={krok} zpet={zpet} />}
 
       {krok === "uvod" && (
-        <section className="space-y-5 text-center">
-          <p className="animate-plovouci text-7xl" aria-hidden>
-            🦠
-          </p>
+        <section className="flex min-h-[62vh] flex-col justify-center space-y-6 text-center">
+          <div className="relative mx-auto grid h-32 w-32 place-items-center">
+            <span className="zare absolute inset-0 rounded-full" aria-hidden />
+            <span className="animate-plovouci relative text-7xl" aria-hidden>
+              🦠
+            </span>
+          </div>
           <div>
             <h1 className="text-stin">
               Odemkni potenciál
               <br />
               <span className="text-mango-400">svého mikrobiomu!</span>
             </h1>
-            <p className="mx-auto mt-3 max-w-sm text-base text-kokos-50/85">
-              {HOOK}
+            <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
+              {sazba(HOOK)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setKrok("q1")}
-            className="tlacitko-hlavni"
-          >
-            Odemknout →
-          </button>
-          <p className="text-sm text-kokos-50/70">
-            Posílá tě{" "}
-            <strong className="font-bold text-mango-400">{bavic.jmeno}</strong>{" "}
-            z Longevity Baru.
-          </p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setKrok("q1")}
+              className="tlacitko-hlavni"
+            >
+              Odemknout →
+            </button>
+            <p className="text-sm text-kokos-50/70">
+              Posílá tě{" "}
+              <strong className="font-bold text-mango-400">{bavic.jmeno}</strong>{" "}
+              z Longevity Baru.
+            </p>
+          </div>
         </section>
       )}
 
@@ -153,79 +161,99 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
       )}
 
       {krok === "vyber" && (
-        <section className="space-y-4">
+        <section className="space-y-5">
           <Konfety kusu={40} />
-          <div className="text-center">
+          <div className="space-y-2 text-center">
+            {/* Emoji na vlastním řádku — v nadpisu rozbíjelo sazbu i účaří. */}
+            <div className="relative mx-auto grid h-16 w-16 place-items-center">
+              <span className="zare absolute inset-0 rounded-full" aria-hidden />
+              <span className="relative text-4xl leading-none" aria-hidden>
+                {oblibeny ? "💛" : "🦠"}
+              </span>
+            </div>
             <h1 className="text-stin">
               {oblibeny
-                ? "💛 Tvůj oblíbený produkt"
-                : "🦠 Tohle tvůj mikrobiom miluje"}
+                ? "Tvůj oblíbený produkt"
+                : "Tohle tvůj mikrobiom miluje"}
             </h1>
-            <p className="mt-2 text-base font-semibold text-kokos-50/85">
+            <p className="mx-auto max-w-[20rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
               {oblibeny ? (
                 <>
                   Najdi ten svůj — na{" "}
                   <strong className="text-mango-400">jeden produkt</strong>{" "}
-                  dostaneš kupón {SLEVA_PROCENT} %.
+                  dostaneš kupón {SLEVA_PROCENT}&nbsp;%.
                 </>
               ) : (
                 <>
                   Odemkni jeho potenciál každé ráno. Vyber si{" "}
                   <strong className="text-mango-400">jeden produkt</strong> — na
-                  něj dostaneš kupón {SLEVA_PROCENT} %.
+                  něj dostaneš kupón {SLEVA_PROCENT}&nbsp;%.
                 </>
               )}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {doporucene.map((p) => (
-              <button
-                key={p.slug}
-                type="button"
-                onClick={() => {
-                  setProdukt(p);
-                  setKrok("formular");
-                }}
-                className="flex min-h-[8.5rem] flex-col items-center justify-center gap-1 rounded-3xl border-2 border-white/20 bg-white/95 p-3 text-center text-inkoust shadow-karta transition active:translate-y-[2px]"
-              >
-                <span className="text-4xl" aria-hidden>
-                  {p.emoji}
-                </span>
-                <span className="text-sm font-extrabold leading-tight">
-                  {p.nazev}
-                </span>
-              </button>
-            ))}
-          </div>
+          {oblibeny ? (
+            /* Celý katalog (66 položek) — bez členění je to nekonečná zeď dlaždic. */
+            <div className="space-y-5">
+              {seskupitPodleKategorie(doporucene).map((skupina) => (
+                <div key={skupina.kategorie} className="space-y-2.5">
+                  <p className="stitek-sekce">
+                    {KATEGORIE_LABEL[skupina.kategorie]}
+                  </p>
+                  <MrizkaProduktu
+                    kompaktni
+                    produkty={skupina.polozky}
+                    vybrat={(p) => {
+                      setProdukt(p);
+                      setKrok("formular");
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <MrizkaProduktu
+              produkty={doporucene}
+              vybrat={(p) => {
+                setProdukt(p);
+                setKrok("formular");
+              }}
+            />
+          )}
 
-          <p className="text-center text-xs text-kokos-50/60">
+          <p className="text-center text-xs leading-relaxed text-kokos-50/70">
             Kupón platí na e-shopu wildandcoco.com, ne u stánku.
           </p>
         </section>
       )}
 
       {krok === "formular" && produkt && (
-        <section className="space-y-4">
+        <section className="space-y-5">
           <div className="text-center">
-            <p className="text-6xl" aria-hidden>
-              {produkt.emoji}
-            </p>
-            <h1 className="mt-2 text-stin">Kam ti kupón pošleme?</h1>
-            <p className="mt-2 text-base font-semibold text-kokos-50/85">
-              {SLEVA_PROCENT} % na{" "}
+            <div className="relative mx-auto grid h-24 w-24 place-items-center">
+              <span className="zare absolute inset-0 rounded-full" aria-hidden />
+              <span className="relative text-6xl leading-none" aria-hidden>
+                {produkt.emoji}
+              </span>
+            </div>
+            <h1 className="mt-1 text-stin">Kam ti kupón pošleme?</h1>
+            <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
+              {SLEVA_PROCENT}&nbsp;% na{" "}
               <strong className="text-mango-400">{produkt.nazev}</strong>
             </p>
             <button
               type="button"
               onClick={() => setKrok("vyber")}
-              className="odkaz mt-1 text-sm text-kokos-50/70"
+              className="mt-2 min-h-[2.25rem] rounded-full px-3 text-sm font-semibold
+                         text-kokos-50/70 underline decoration-white/30 underline-offset-4
+                         transition hover:text-kokos-50 hover:decoration-mango-400"
             >
               Změnit produkt
             </button>
           </div>
 
-          <form action={akce} className="karta space-y-3">
+          <form action={akce} className="karta space-y-2.5">
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
 
@@ -266,9 +294,9 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             <button
               type="submit"
               disabled={ceka}
-              className="tlacitko-hlavni disabled:opacity-70"
+              className="tlacitko-hlavni mt-1 disabled:opacity-70"
             >
-              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
+              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
             </button>
 
             {vysledek?.stav === "chyba" && (
@@ -280,7 +308,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
               </p>
             )}
 
-            <p className="text-center text-xs text-kokos-50/60">
+            <p className="px-1 text-center text-[0.6875rem] leading-relaxed text-kokos-50/80">
               Kontakt použijeme na poslání kupónu a pár přátelských zpráv od
               WILD&amp;COCO — max. 6 během půl roku. Kdykoli se můžeš odhlásit,
               detaily v Pravidlech níže.
@@ -298,16 +326,85 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
 
 const CISLO_OTAZKY: Partial<Record<Krok, number>> = { q1: 1, q2: 2, q3: 3 };
 
+/** Pořadí sekcí v katalogu — kopíruje pořadí skupin v `PRODUKTY`. */
+const PORADI_KATEGORII: Kategorie[] = [
+  "streva",
+  "piti",
+  "energie",
+  "suplementy",
+  "sladke",
+  "slane",
+  "vareni",
+];
+
+/**
+ * Rozdělí katalog do sekcí podle PRVNÍ kategorie produktu — čistě zobrazovací
+ * pomůcka, aby 66 dlaždic nebylo jedna nekonečná zeď. Doporučovací logika
+ * v `lib/kviz.ts` se tím nemění.
+ */
+function seskupitPodleKategorie(
+  produkty: KvizProdukt[],
+): { kategorie: Kategorie; polozky: KvizProdukt[] }[] {
+  return PORADI_KATEGORII.map((kategorie) => ({
+    kategorie,
+    polozky: produkty.filter((p) => p.kategorie[0] === kategorie),
+  })).filter((s) => s.polozky.length > 0);
+}
+
+function MrizkaProduktu({
+  produkty,
+  vybrat,
+  kompaktni = false,
+}: {
+  produkty: KvizProdukt[];
+  vybrat: (produkt: KvizProdukt) => void;
+  /** Celý katalog jede v hustší mřížce, doporučených 8 dostane víc prostoru. */
+  kompaktni?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {produkty.map((p) => (
+        <button
+          key={p.slug}
+          type="button"
+          onClick={() => vybrat(p)}
+          className={kompaktni ? "dlazdice-mala" : "dlazdice"}
+        >
+          <span
+            className={kompaktni ? "text-2xl leading-none" : "text-[2rem] leading-none"}
+            aria-hidden
+          >
+            {p.emoji}
+          </span>
+          <span
+            className={[
+              "font-extrabold leading-[1.25] text-balance",
+              kompaktni ? "text-[0.75rem]" : "text-[0.8125rem]",
+            ].join(" ")}
+          >
+            {p.nazev}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
   const cislo = CISLO_OTAZKY[krok];
   return (
     <div className="flex items-center justify-between gap-3">
-      <button type="button" onClick={zpet} className="odkaz text-sm">
+      <button
+        type="button"
+        onClick={zpet}
+        className="-ml-2 flex min-h-[2.5rem] items-center rounded-full px-2 text-sm
+                   font-semibold text-kokos-50/80 transition hover:bg-white/10 hover:text-kokos-50"
+      >
         ← Zpět
       </button>
       {cislo ? (
-        <span className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-kokos-50/60">
+        <span className="flex items-center gap-2.5">
+          <span className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-kokos-50/60">
             Otázka {cislo} ze 3
           </span>
           <span className="flex gap-1" aria-hidden>
@@ -315,15 +412,15 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
               <span
                 key={i}
                 className={[
-                  "h-2 w-2 rounded-full",
-                  i <= cislo ? "bg-mango-400" : "bg-white/25",
+                  "h-1.5 rounded-full transition-all",
+                  i <= cislo ? "w-5 bg-mango-400" : "w-3 bg-white/25",
                 ].join(" ")}
               />
             ))}
           </span>
         </span>
       ) : (
-        <span className="text-xs font-bold uppercase tracking-widest text-mango-400">
+        <span className="odznak bg-mango-400/15 text-[0.7rem] tracking-[0.16em] text-mango-400">
           Odemčeno 🔓
         </span>
       )}
@@ -378,19 +475,19 @@ function Volby<T extends string>({
   vybrat: (hodnota: T) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {moznosti.map((m) => (
         <button
           key={m.hodnota}
           type="button"
           onClick={() => vybrat(m.hodnota)}
-          className="flex min-h-[4.25rem] w-full items-center gap-4 rounded-2xl border-2 border-white/20 bg-white/10 px-5 py-3 text-left text-lg font-extrabold text-kokos-50 transition hover:bg-white/20 active:translate-y-[2px]"
+          className="volba"
         >
-          <span className="text-3xl" aria-hidden>
+          <span className="volba-ikona" aria-hidden>
             {m.emoji}
           </span>
-          <span className="flex-1 leading-tight">{m.text}</span>
-          <span className="text-2xl text-mango-400" aria-hidden>
+          <span className="flex-1">{m.text}</span>
+          <span className="pr-1 text-2xl leading-none text-mango-400" aria-hidden>
             ›
           </span>
         </button>
@@ -409,35 +506,42 @@ function Vyhra({
       <Konfety kusu={70} />
 
       <div className="text-center">
-        <p className="animate-plovouci text-7xl" aria-hidden>
-          {vysledek.emoji}
-        </p>
-        <h1 className="mt-2 text-stin">Máš to! 🎉</h1>
-        <p className="mt-2 text-base font-semibold text-kokos-50/85">
-          Kupón {SLEVA_PROCENT} % na{" "}
+        <div className="relative mx-auto grid h-28 w-28 place-items-center">
+          <span className="zare absolute inset-0 rounded-full" aria-hidden />
+          <span className="animate-plovouci relative text-7xl" aria-hidden>
+            {vysledek.emoji}
+          </span>
+        </div>
+        <h1 className="mt-1 text-stin">Máš to! 🎉</h1>
+        <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
+          Kupón {SLEVA_PROCENT}&nbsp;% na{" "}
           <strong className="text-mango-400">{vysledek.produkt}</strong>
         </p>
       </div>
 
-      <div className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 p-5 text-center shadow-karta">
-        <p className="text-xs font-black uppercase tracking-widest text-inkoust/70">
+      {/* Kupón = hrdina obrazovky: dostane rám i vlastní stín. */}
+      <div className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 px-4 py-5 text-center shadow-[0_20px_44px_-20px_rgba(255,107,53,0.85)]">
+        <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-inkoust/75">
           Kód kupónu
         </p>
-        <p className="mt-2 break-all text-3xl font-black tracking-wide text-inkoust">
+        <p className="kod-kuponu mt-2 text-[1.6rem] font-black leading-tight text-inkoust">
           {vysledek.kod}
         </p>
       </div>
 
-      <a href={ESHOP_URL} className="tlacitko-zapad">
+      <a
+        href={ESHOP_URL}
+        className="tlacitko-zapad text-[0.9375rem] tracking-[0.03em]"
+      >
         Nakoupit na wildandcoco.com
       </a>
 
-      <div className="karta space-y-2 text-center text-sm text-kokos-50/85">
+      <div className="karta space-y-2.5 text-center text-sm leading-relaxed text-kokos-50/90">
         <p>
           {vysledek.emailOdeslan ? (
             <>
               Kupón ti letí i na{" "}
-              <strong className="font-bold text-mango-400">
+              <strong className="break-words font-bold text-mango-300">
                 {vysledek.email}
               </strong>{" "}
               — mrkni i do spamu.
@@ -445,14 +549,16 @@ function Vyhra({
           ) : (
             <>
               E-mail se nám teď nepodařilo odeslat — kód si prosím{" "}
-              <strong className="font-bold text-mango-400">
+              <strong className="font-bold text-mango-300">
                 vyfoť nebo opiš
               </strong>
               .
             </>
           )}
         </p>
-        <p className="text-xs text-kokos-50/60">{vysledek.podminky}</p>
+        <p className="border-t border-white/10 pt-2.5 text-xs leading-relaxed text-kokos-50/80">
+          {sazba(vysledek.podminky)}
+        </p>
       </div>
     </div>
   );

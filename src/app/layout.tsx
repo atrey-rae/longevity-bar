@@ -38,7 +38,9 @@ export default function RootLayout({
     <html lang="cs">
       <body>
         <div className="flex min-h-dvh flex-col">
-          <header className="no-print sticky top-0 z-30 border-b border-white/10 bg-laguna-900/70 backdrop-blur-md">
+          {/* /85 místo /70: konfety letící za lištou pod ní prosvítaly jako
+              barevné pruhy a působily jako grafická chyba. */}
+          <header className="no-print sticky top-0 z-30 border-b border-white/10 bg-laguna-900/85 backdrop-blur-md">
             <div className="obal flex items-center justify-between py-3">
               <Link
                 href="/"
@@ -57,15 +59,24 @@ export default function RootLayout({
             </div>
           </header>
 
-          <main className="flex-1 py-5">{children}</main>
+          <main className="flex-1 py-6 sm:py-10">{children}</main>
 
-          <footer className="no-print border-t border-white/10 py-5 text-center text-xs text-kokos-50/60">
-            <div className="obal space-y-2">
-              <div className="flex justify-center gap-4">
-                <Link href="/pravidla" className="odkaz">
+          <footer className="no-print mt-6 border-t border-white/10 py-6 text-center text-xs text-kokos-50/70">
+            <div className="obal space-y-2.5">
+              <div className="flex items-center justify-center gap-2">
+                <Link
+                  href="/pravidla"
+                  className="rounded-full px-2 py-1 font-semibold text-kokos-50/85 transition hover:text-mango-400"
+                >
                   Pravidla &amp; GDPR
                 </Link>
-                <a href="https://wildandcoco.com" className="odkaz">
+                <span className="text-kokos-50/25" aria-hidden>
+                  ·
+                </span>
+                <a
+                  href="https://wildandcoco.com"
+                  className="rounded-full px-2 py-1 font-semibold text-kokos-50/85 transition hover:text-mango-400"
+                >
                   Wild &amp; Coco
                 </a>
               </div>

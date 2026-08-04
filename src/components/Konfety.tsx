@@ -58,7 +58,9 @@ export default function Konfety({
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-50 overflow-hidden"
+      /* z-20 = pod lepivou hlavičkou (z-30): konfety „padají zpoza baru“,
+         místo aby přelétaly přes logo. */
+      className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
       aria-hidden="true"
     >
       {kusy.map((k) => (
