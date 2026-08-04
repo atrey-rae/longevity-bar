@@ -388,6 +388,42 @@ delete from public.profiles where email = 'zakaznik@email.cz';
 -- razítka i odměny se smažou kaskádou; účet pak smaž v Authentication → Users
 ```
 
+
+---
+
+## 9. Kvíz bavičů fronty — „Odemkni potenciál svého mikrobiomu!"
+
+Druhá část appky (od 4. 8. 2026): veřejný kvíz bez přihlášení na
+`/kviz/<bavič>` (a1 Ivona · b2 Denisa · c3 Amae · d4 Atrey · e5 Kateřina ·
+f6 Leonardo). Bavič fronty ukáže hostovi svůj QR → 3 otázky (životní
+priorita → trávení → snídaně) → doporučení 6–8 produktů ze 3 pilířů
+(gut dle Q2 vždy první) → výběr 1 produktu → jméno + e-mail + telefon →
+kupón 21 % na obrazovce i e-mailem.
+
+**Klíčové soubory:** `src/lib/kviz.ts` (katalog 66 produktů s CS kódy,
+otázky, pilíře doporučení, sdílené kódy kupónů), `src/app/kviz/actions.ts`
+(server action: validace, rate-limit 10 min/e-mail+bavič, insert do
+`quiz_leads`, personalizovaný kupón přes CloudSailor care-api, Resend
+e-maily), `src/components/KvizFlow.tsx` (klientský flow),
+`scripts/check-kviz.ts` (verifikace všech 80 kombinací odpovědí —
+spouštěj `npx tsx scripts/check-kviz.ts` po každé změně pilířů).
+
+**Kupóny:** primárně personalizovaný kód `HEAL21-<BAVIČ>-<SLUG>-<4 znaky>`
+(vázaný na e-mail — dependentEmail, platí do 31. 12. 2026, bez limitu
+použití, min. objednávka 500 Kč, skupina HEALING-DYNAMIC). Když care-api
+selže, použije se sdílený předgenerovaný kód `HEAL21-<BAVIČ>-<SLUG>`
+(1×/zákazník, do 30. 9.) a na atrey@wildandcoco.com odejde notifikace
+s důvodem. Zdroj pravdy mapování produkt↔kód:
+`_data/healing-festival-bar/kviz-kupony-mapping.md` (mimo repo).
+
+**Env navíc:** `RESEND_API_KEY`, `CS_CARE_USER`, `CS_CARE_PASSWORD`
+(viz `.env.example`). Leady se ukládají do tabulky `quiz_leads`
+(migrace `003_quiz_leads.sql`, RLS bez policies = jen service role).
+
+**GDPR:** /pravidla — marketing WILD&COCO s.r.o. max 6 zpráv do 6 měsíců
+od získání kontaktu; pak jen zákazníci e-shopu. Kontakty mazat nejpozději
+po 6 měsících.
+
 ---
 
 ## Kontakt

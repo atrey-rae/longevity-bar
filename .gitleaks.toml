@@ -1,0 +1,4 @@
+# Gitleaks konfigurace — allowlist pro záměrné dummy hodnoty v šablonách.
+[allowlist]
+description = "Dummy placeholdery v .env.example (nejsou to reálné secrets)"
+paths = ['''\.env\.example$''']
