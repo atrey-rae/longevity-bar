@@ -5,7 +5,7 @@ import KvizFlow from "@/components/KvizFlow";
 import { BAVICI, najitBavice } from "@/lib/kviz";
 
 export const metadata: Metadata = {
-  title: "Královská snídaně — kvíz",
+  title: "Odemkni potenciál svého mikrobiomu — kvíz",
 };
 
 /** Šest bavičů = šest statických stránek, žádná jiná adresa neexistuje. */

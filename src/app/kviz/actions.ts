@@ -418,7 +418,7 @@ function teloText({
   return [
     `Ahoj ${jmeno},`,
     "",
-    `tady je tvůj kupón na ${SLEVA_PROCENT} % slevy na ${produkt.nazev}:`,
+    `tvůj mikrobiom si dnes řekl o ${produkt.nazev} — tady je kupón na ${SLEVA_PROCENT} % slevy:`,
     "",
     kod,
     "",
@@ -447,9 +447,9 @@ function teloHtml({
     <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fffaf0;border-radius:24px;padding:28px;">
       <tr><td>
         <p style="margin:0 0 4px;font-size:15px;">Ahoj ${escapovat(jmeno)},</p>
-        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;">Tvůj kupón na ${SLEVA_PROCENT} % 👑</h1>
+        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;">Tvůj kupón na ${SLEVA_PROCENT} % 🦠</h1>
         <p style="margin:0 0 20px;font-size:16px;">
-          Platí na <strong>${produkt.emoji} ${escapovat(produkt.nazev)}</strong>.
+          Tvůj mikrobiom si řekl o <strong>${produkt.emoji} ${escapovat(produkt.nazev)}</strong>.
         </p>
         <div style="background:#ffc247;border-radius:16px;padding:18px;text-align:center;">
           <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Kód kupónu</p>

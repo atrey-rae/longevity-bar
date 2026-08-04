@@ -1,8 +1,8 @@
 /**
- * Kvíz bavičů fronty — „královská snídaně“.
+ * Kvíz bavičů fronty — „Odemkni potenciál svého mikrobiomu!“.
  *
- * Tři otázky vedou od životní priority přes stav trávení k formátu snídaně,
- * která návštěvníka nastartuje na celý den, a k jednomu produktu se slevou 21 %.
+ * Tři otázky vedou od životní priority přes stav trávení k snídani, kterou
+ * mikrobiom potřebuje každý den, a k jednomu produktu se slevou 21 %.
  *
  * Zdroj pravdy pro produkty i kódy kupónů:
  * `_data/healing-festival-bar/kviz-kupony-mapping.md` (vč. sekce KOREKCE 3. 8. —
@@ -245,7 +245,7 @@ export type Moznost<T extends string> = {
 export const OBLIBENY_TEXT = "Už mám svůj oblíbený WILD&COCO produkt!";
 
 export const HOOK =
-  "Zdraví, trávení a královská snídaně — 3 otázky, 30 vteřin, sleva 21 % na míru.";
+  "3 otázky, 30 vteřin — zjisti, co tvůj mikrobiom potřebuje, a získej slevu 21 % na míru.";
 
 export const OTAZKA_1_TEXT = "Co je pro tebe v životě nejdůležitější?";
 export const OTAZKA_1: Moznost<OdpovedQ1>[] = [

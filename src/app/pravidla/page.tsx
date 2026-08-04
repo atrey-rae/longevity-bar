@@ -97,9 +97,10 @@ export default function PravidlaPage() {
       <section className="karta space-y-3 text-sm leading-relaxed">
         <h2>Ochrana osobních údajů (GDPR)</h2>
         <p>
-          Správcem údajů je provozovatel stánku Longevity Bar (Wild &amp; Coco /
-          Peace &amp; Coco).
+          Správcem údajů je <strong>WILD&amp;COCO s.r.o.</strong>, provozovatel
+          stánku Longevity Bar (Peace &amp; Coco).
         </p>
+        <h3 className="font-bold">Věrnostní program (razítka)</h3>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
             Zpracováváme <strong>e-mail</strong> (a jméno, pokud se přihlásíš
@@ -107,19 +108,48 @@ export default function PravidlaPage() {
           </li>
           <li>
             Účel: provoz věrnostního programu. Právní základ: plnění služby, o
-            kterou jsi požádal.
+            kterou jsi požádal. E-mail z věrnostního programu k marketingu
+            nepoužíváme a nikomu ho nepředáváme.
           </li>
           <li>
-            E-mail <strong>nepoužíváme k marketingu</strong> a nikomu ho
-            nepředáváme.
+            Údaje věrnostního programu mažeme nejpozději do 3 měsíců po
+            skončení festivalu.
           </li>
+        </ul>
+        <h3 className="font-bold">
+          Kvíz „Odemkni potenciál svého mikrobiomu“ (kupóny)
+        </h3>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li>
+            Zpracováváme <strong>jméno, e-mail a telefonní číslo</strong>,
+            které vyplníš ve formuláři, a vybraný produkt s kódem kupónu.
+          </li>
+          <li>
+            Účel: zaslání kupónu a{" "}
+            <strong>marketingová komunikace WILD&amp;COCO s.r.o.</strong> —
+            kontaktní údaje k ní můžeme použít{" "}
+            <strong>do 6 měsíců od jejich získání</strong>, a to ve velmi
+            omezené formě: <strong>maximálně 6 přátelských zpráv</strong>.
+          </li>
+          <li>
+            Další komunikace je možná jen v případě, že se staneš zákazníkem
+            internetového obchodu www.wildandcoco.com&nbsp;/&nbsp;.de&nbsp;/
+            &nbsp;.sk&nbsp;/&nbsp;.at&nbsp;/&nbsp;.ch.
+          </li>
+          <li>
+            Z komunikace se můžeš kdykoli odhlásit — odpovědí na zprávu nebo u
+            obsluhy stánku; kontakty pak přestaneme používat.
+          </li>
+        </ul>
+        <h3 className="font-bold">Společné</h3>
+        <ul className="list-disc space-y-1.5 pl-5">
           <li>
             Data jsou uložena u zpracovatele Supabase (EU) a appka běží na
             Vercelu.
           </li>
           <li>
-            Údaje mažeme nejpozději do 3 měsíců po skončení festivalu. O výmaz
-            můžeš požádat kdykoli dřív u obsluhy stánku.
+            O výmaz svých údajů můžeš požádat kdykoli u obsluhy stánku nebo na
+            e-shopu.
           </li>
           <li>
             Cookies používáme pouze technické — pro udržení přihlášení. Žádné

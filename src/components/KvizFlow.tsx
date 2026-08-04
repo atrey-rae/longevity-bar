@@ -36,8 +36,9 @@ const PREDCHOZI: Record<Exclude<Krok, "uvod">, Krok> = {
 };
 
 /**
- * Kvíz „královská snídaně“ — tři klepnutí, výběr produktu, kontakt, kupón.
- * Celý stav žije v prohlížeči; server se volá až při odeslání kontaktu.
+ * Kvíz „Odemkni potenciál svého mikrobiomu“ — tři klepnutí, výběr produktu,
+ * kontakt, kupón. Celý stav žije v prohlížeči; server se volá až při odeslání
+ * kontaktu.
  */
 export default function KvizFlow({ bavic }: { bavic: Bavic }) {
   const [krok, setKrok] = useState<Krok>("uvod");
@@ -91,13 +92,13 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
       {krok === "uvod" && (
         <section className="space-y-5 text-center">
           <p className="animate-plovouci text-7xl" aria-hidden>
-            👑
+            🦠
           </p>
           <div>
             <h1 className="text-stin">
-              Královská snídaně,
+              Odemkni potenciál
               <br />
-              <span className="text-mango-400">která tě nastartuje</span>
+              <span className="text-mango-400">svého mikrobiomu!</span>
             </h1>
             <p className="mx-auto mt-3 max-w-sm text-base text-kokos-50/85">
               {HOOK}
@@ -108,7 +109,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             onClick={() => setKrok("q1")}
             className="tlacitko-hlavni"
           >
-            Jdu na to →
+            Odemknout →
           </button>
           <p className="text-sm text-kokos-50/70">
             Posílá tě{" "}
@@ -156,7 +157,9 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
           <Konfety kusu={40} />
           <div className="text-center">
             <h1 className="text-stin">
-              {oblibeny ? "💛 Tvůj oblíbený produkt" : "👑 Tvoje královská snídaně"}
+              {oblibeny
+                ? "💛 Tvůj oblíbený produkt"
+                : "🦠 Tohle tvůj mikrobiom miluje"}
             </h1>
             <p className="mt-2 text-base font-semibold text-kokos-50/85">
               {oblibeny ? (
@@ -167,7 +170,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
                 </>
               ) : (
                 <>
-                  Tohle tě nastartuje na celý den. Vyber si{" "}
+                  Odemkni jeho potenciál každé ráno. Vyber si{" "}
                   <strong className="text-mango-400">jeden produkt</strong> — na
                   něj dostaneš kupón {SLEVA_PROCENT} %.
                 </>
@@ -278,8 +281,9 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             )}
 
             <p className="text-center text-xs text-kokos-50/60">
-              Kontakt použijeme jen na poslání kupónu a novinky z Wild &amp;
-              Coco. Kdykoli se můžeš odhlásit.
+              Kontakt použijeme na poslání kupónu a pár přátelských zpráv od
+              WILD&amp;COCO — max. 6 během půl roku. Kdykoli se můžeš odhlásit,
+              detaily v Pravidlech níže.
             </p>
           </form>
         </section>
@@ -320,7 +324,7 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
         </span>
       ) : (
         <span className="text-xs font-bold uppercase tracking-widest text-mango-400">
-          Hotovo 👑
+          Odemčeno 🔓
         </span>
       )}
     </div>
