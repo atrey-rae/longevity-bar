@@ -4,21 +4,27 @@ import {
   ESHOP_URL,
   KUPON_PODMINKY,
   KUPON_PODMINKY_FALLBACK,
+  PUBLIC_WEB_QUIZ_HOST,
   SLEVA_PROCENT,
   kodKuponu,
-  najitBavice,
-  najitProdukt,
   type Bavic,
   type KvizProdukt,
 } from "@/lib/kviz";
+import { parseKvizFormData, sestavitQuizLeadZaznam } from "@/lib/kviz-lead";
+import {
+  claimQuizCompletion,
+  finishQuizCompletion,
+  getQuizPolicy,
+  releaseQuizClaim,
+} from "@/lib/quiz-access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/supabase/server";
 
 /**
  * Server action kvízu bavičů fronty.
  *
- * POZOR: endpoint je VEŘEJNÝ a bez session (návštěvník festivalu nic
- * nepřihlašuje). Všechno se proto validuje tady a název produktu i kód kupónu
- * se berou ze statického katalogu — klientu se nevěří nic než dva slugy.
+ * Vynucení session je serverové a řídí ho Supabase quiz policy. I v anonymním
+ * režimu se všechno validuje tady a odpovědi na otázky se nikdy neposílají.
  */
 
 export type VysledekKuponu =
@@ -47,64 +53,45 @@ const NOTIFIKACE_KOMU = "atrey@wildandcoco.com";
 /** Kratší než u kupónového e-mailu — notifikace nesmí zdržet odpověď hostovi. */
 const NOTIFIKACE_TIMEOUT_MS = 4000;
 
-function text(formData: FormData, key: string): string {
-  const v = formData.get(key);
-  return typeof v === "string" ? v.trim() : "";
-}
-
 function chyba(zprava: string): VysledekKuponu {
   return { stav: "chyba", zprava };
 }
 
-/** 9 číslic bez předvolby = české číslo (stejné pravidlo jako v `app/actions.ts`). */
-function normalizovatTelefon(vstup: string): string | null {
-  const cislice = vstup.replace(/[\s()./-]/g, "");
-  if (!/^\+?\d{9,15}$/.test(cislice)) return null;
-  if (cislice.startsWith("+")) return cislice;
-  return cislice.length === 9 ? `+420${cislice}` : `+${cislice}`;
+/**
+ * Pozná chybu PostgREST „sloupec neexistuje ve schema cache" pro daný sloupec
+ * (kód `PGRST204`, případně jen podle textu hlášky — verze klienta se liší).
+ */
+function jeChybaChybejicihoSloupce(
+  chyba: { code?: string; message?: string },
+  sloupec: string,
+): boolean {
+  if (chyba.code === "PGRST204") return true;
+  return (chyba.message ?? "").toLowerCase().includes(sloupec.toLowerCase());
 }
 
 export async function odeslatKvizLead(
   _predchozi: VysledekKuponu | null,
   formData: FormData,
 ): Promise<VysledekKuponu> {
-  /* --- Validace ---------------------------------------------------------- */
-  const bavic = najitBavice(text(formData, "bavic"));
-  const produkt = najitProdukt(text(formData, "produkt"));
-  if (!bavic || !produkt) {
-    return chyba("Něco se rozbilo. Načti prosím QR kód znovu.");
-  }
-
-  const jmeno = text(formData, "jmeno").slice(0, 80);
-  if (jmeno.length < 2) return chyba("Napiš nám prosím svoje křestní jméno.");
-
-  const email = text(formData, "email").toLowerCase().slice(0, 160);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return chyba("Zkontroluj prosím e-mail — kupón ti na něj pošleme.");
-  }
-
-  const telefon = normalizovatTelefon(text(formData, "telefon"));
-  if (!telefon) return chyba("Telefon nám nesedí. Zkus ho zadat znovu.");
+  /* --- Validace (čistá, testovaná v `lib/kviz-lead.ts`) ------------------- */
+  const vstup = parseKvizFormData(formData);
+  if (!vstup.ok) return chyba(vstup.zprava);
+  const { bavic, produkt, quizVariant, jmeno, email, telefon } = vstup.data;
 
   // Kód se skládá ze slugů znovu ověřených proti katalogu (allowlist).
   const sdilenyKod = kodKuponu(bavic.slug, produkt.slug);
   if (!sdilenyKod) return chyba("Něco se rozbilo. Načti prosím QR kód znovu.");
 
-  // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
-  // bez limitu počtu objednávek. Když API e-shopu neodpoví, spadneme na
-  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje) a pošleme
-  // o tom notifikaci — tichý fallback by se na festivalu nikdy nezjistil.
-  const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
-  const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
-  const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
-  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
+  const [policy, user] = await Promise.all([getQuizPolicy(), getSessionUser()]);
+  if (policy.loginRequired && !user) {
+    return chyba("Nejdřív se prosím přihlas telefonním číslem a kvíz otevři znovu.");
+  }
 
-  /* --- Rate-limit + zápis leadu ------------------------------------------ */
-  // Vše kolem databáze je v try/catch: výjimka ze server action by vyhodila
-  // error boundary a návštěvník by přišel o celý kvíz.
+  /* --- Rate-limit --------------------------------------------------------- */
+  // Ověřujeme PŘED rezervací dokončení i založením kupónu. Opakovaný pokus
+  // tak nezanechá visící pending rezervaci a nespálí další kupón v e-shopu.
   try {
     const admin = createAdminClient();
-
     const od = new Date(Date.now() - LIMIT_MINUT * 60_000).toISOString();
     const { data: nedavne, error: chybaLimitu } = await admin
       .from("quiz_leads")
@@ -115,31 +102,106 @@ export async function odeslatKvizLead(
       .limit(1);
 
     if (chybaLimitu) {
-      // Nepouštíme návštěvníka k ledu kvůli našemu výpadku — jen to hlasitě logujeme.
+      // Výpadek pomocné ochrany nesmí hosta připravit o kupón.
       console.warn("[kviz] rate-limit dotaz selhal:", chybaLimitu.message);
     } else if (nedavne && nedavne.length > 0) {
       return chyba(
         "Kupón už jsme ti před chvílí poslali — mrkni do e-mailu, i do spamu.",
       );
     }
+  } catch (error) {
+    console.warn("[kviz] rate-limit dotaz selhal:", error);
+  }
 
-    const { error: chybaZapisu } = await admin.from("quiz_leads").insert({
-      bavic: bavic.kod,
-      product_slug: produkt.slug,
-      product_name: produkt.nazev,
-      coupon_code: kod,
-      first_name: jmeno,
+  let claimId: string | null = null;
+  try {
+    const claim = await claimQuizCompletion({
+      userId: user?.id ?? null,
       email,
       phone: telefon,
+      variant: quizVariant,
+      bavicCode: bavic.kod,
     });
+    if (!claim.ok) {
+      return chyba("Tuto variantu kvízu už máš dokončenou. Vyber si prosím druhou.");
+    }
+    claimId = claim.id;
+  } catch (error) {
+    console.error("[kviz] rezervace dokončení selhala:", error);
+    return chyba("Kvíz se teď nepodařilo dokončit. Zkus to prosím znovu.");
+  }
+
+  // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
+  // bez limitu počtu objednávek. Když API e-shopu neodpoví, spadneme na
+  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje) a pošleme
+  // o tom notifikaci — tichý fallback by se na festivalu nikdy nezjistil.
+  const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
+  const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
+
+  // Sdílené HEAL21-WEB-* kódy nejsou v e-shopu předgenerované. Veřejný
+  // rozcestník proto při výpadku care-api nesmí ukázat neplatný odvozený kód
+  // ani uložit lead, který žádný funkční kupón nedostal. U šesti bavičů
+  // zůstává dosavadní ověřený fallback beze změny.
+  if (duvodFallbacku && bavic.kod === PUBLIC_WEB_QUIZ_HOST.kod) {
+    console.warn("[kviz] osobní WEB kupón nevznikl:", duvodFallbacku);
+    if (claimId) await releaseQuizClaim(claimId);
+    return chyba(
+      "Osobní kupón se nepodařilo vytvořit. Zkus to prosím za chvíli znovu.",
+    );
+  }
+
+  const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
+  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
+
+  /* --- Zápis leadu -------------------------------------------------------- */
+  // Vše kolem databáze je v try/catch: výjimka ze server action by vyhodila
+  // error boundary a návštěvník by přišel o celý kvíz.
+  try {
+    const admin = createAdminClient();
+
+    const zaznam = sestavitQuizLeadZaznam({
+      bavic,
+      produkt,
+      quizVariant,
+      jmeno,
+      email,
+      telefon,
+      kod,
+    });
+    let { error: chybaZapisu } = await admin.from("quiz_leads").insert(zaznam);
+
+    // Migrace 004 (sloupec quiz_variant) ještě nemusí být na produkci spuštěná
+    // v okamžiku, kdy se tenhle kód nasadí — bez téhle pojistky by do té doby
+    // selhal ÚPLNĚ KAŽDÝ zápis leadu (obě varianty kvízu), i když osobní kupón
+    // už mezitím vznikl v e-shopu. Zkusíme tedy zápis zopakovat bez nového
+    // sloupce; DB default 'microbiom' se použije místo něj.
+    if (chybaZapisu && jeChybaChybejicihoSloupce(chybaZapisu, "quiz_variant")) {
+      console.warn(
+        "[kviz] sloupec quiz_variant chybí (migrace 004?), zapisuju bez něj:",
+        chybaZapisu.message,
+      );
+      const { quiz_variant: _quizVariant, ...zaznamBezVarianty } = zaznam;
+      ({ error: chybaZapisu } = await admin
+        .from("quiz_leads")
+        .insert(zaznamBezVarianty));
+    }
 
     if (chybaZapisu) {
       console.error("[kviz] zápis leadu selhal:", chybaZapisu.message);
+      if (claimId) await releaseQuizClaim(claimId);
       return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
     }
   } catch (e) {
     console.error("[kviz] databáze není dostupná:", e);
+    if (claimId) await releaseQuizClaim(claimId);
     return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
+  }
+
+  try {
+    await finishQuizCompletion(claimId);
+  } catch (error) {
+    console.error("[kviz] potvrzení dokončení selhalo:", error);
+    return chyba("Kvíz je uložený, ale potvrzení se nepodařilo. Obrať se prosím na tým Longevity Baru.");
   }
 
   /* --- E-maily (best-effort) --------------------------------------------- */

@@ -129,17 +129,17 @@ export default function PravidlaPage() {
         <h3 className="pt-1 text-[0.8125rem] font-black uppercase tracking-[0.12em] text-mango-400">Věrnostní program (razítka)</h3>
         <ul className="list-disc space-y-2 pl-5 marker:text-mango-400">
           <li>
-            Zpracováváme <strong>e-mail</strong> (a jméno, pokud se přihlásíš
-            přes Google) a <strong>historii razítek a odměn</strong>.
+            Zpracováváme <strong>telefonní číslo a e-mail</strong> (a jméno,
+            pokud se přihlásíš přes Google) a <strong>historii razítek a odměn</strong>.
           </li>
           <li>
-            Účel: provoz věrnostního programu. Právní základ: plnění služby, o
-            kterou jsi požádal. E-mail z věrnostního programu k marketingu
-            nepoužíváme a nikomu ho nepředáváme.
+            Účel: přihlášení, provoz věrnostního programu a zasílání Longevity
+            tipů po festivalu, nejdéle do 31. 12. 2026. Údaje nikomu neprodáváme.
           </li>
           <li>
-            Údaje věrnostního programu mažeme nejpozději do 3 měsíců po
-            skončení festivalu.
+            Kontaktní údaje pro Longevity tipy používáme nejdéle do 31. 12.
+            2026; poté je smažeme nebo ponecháme jen tehdy, pokud pro to máme
+            jiný platný důvod (například tvůj samostatný souhlas či nákup).
           </li>
         </ul>
         <h3 className="pt-1 text-[0.8125rem] font-black uppercase tracking-[0.12em] text-mango-400">
@@ -148,14 +148,16 @@ export default function PravidlaPage() {
         <ul className="list-disc space-y-2 pl-5 marker:text-mango-400">
           <li>
             Zpracováváme <strong>jméno, e-mail a telefonní číslo</strong>,
-            které vyplníš ve formuláři, a vybraný produkt s kódem kupónu.
+            které vyplníš ve formuláři, vybraný produkt s kódem kupónu a
+            variantu kvízu. <strong>Odpovědi na otázky kvízu se neukládají</strong>{" "}
+            — zůstávají jen v tvém prohlížeči.
           </li>
           <li>
             Účel: zaslání kupónu a{" "}
-            <strong>marketingová komunikace WILD&amp;COCO s.r.o.</strong> —
-            kontaktní údaje k ní můžeme použít{" "}
-            <strong>do 6 měsíců od jejich získání</strong>, a to ve velmi
-            omezené formě: <strong>maximálně 6 přátelských zpráv</strong>.
+            <strong>Longevity tipů od WILD&amp;COCO s.r.o.</strong> —
+            kontaktní údaje k tomu používáme{" "}
+            <strong>nejdéle do 31. 12. 2026</strong>, a to ve velmi omezené
+            formě: <strong>maximálně 6 přátelských zpráv</strong>.
           </li>
           <li>
             Další komunikace je možná jen v případě, že se staneš zákazníkem
@@ -163,8 +165,8 @@ export default function PravidlaPage() {
             &nbsp;.sk&nbsp;/&nbsp;.at&nbsp;/&nbsp;.ch.
           </li>
           <li>
-            Z komunikace se můžeš kdykoli odhlásit — odpovědí na zprávu nebo u
-            obsluhy stánku; kontakty pak přestaneme používat.
+            Souhlas můžeš kdykoli odvolat — odpovědí na zprávu nebo u obsluhy
+            stánku; kontakty pak přestaneme používat.
           </li>
         </ul>
         <h3 className="pt-1 text-[0.8125rem] font-black uppercase tracking-[0.12em] text-mango-400">Společné</h3>
@@ -184,7 +186,7 @@ export default function PravidlaPage() {
         </ul>
       </section>
 
-      <Link href="/" className="tlacitko-vedlejsi">
+      <Link href="/odmeny" className="tlacitko-vedlejsi">
         Zpět na kartu
       </Link>
     </div>

@@ -22,6 +22,7 @@ export default async function PrihlaseniPage({
   if (user) redirect(next);
 
   const jdeOSken = next.startsWith("/scan/");
+  const jdeOOdmeny = next === "/odmeny";
 
   return (
     <div className="obal space-y-6">
@@ -32,8 +33,10 @@ export default async function PrihlaseniPage({
         <h1 className="text-stin">Přihlas se a sbírej razítka</h1>
         <p className="mt-2 text-base text-kokos-50/85">
           {jdeOSken
-            ? "Ještě krok — po přihlášení ti hned připíšeme razítko."
-            : "Za každá 4 razítka si vybereš odměnu zdarma."}
+            ? "Ještě krok — po přihlášení otevřeme kartu a razítko připíšeme, pokud je QR kód platný právě dnes."
+            : jdeOOdmeny
+              ? "Po přihlášení otevřeme tvoji věrnostní kartu a všechny nasbírané odměny."
+              : "Za každá 4 razítka si vybereš odměnu zdarma."}
         </p>
       </div>
 
@@ -43,7 +46,7 @@ export default async function PrihlaseniPage({
           className="rounded-xl bg-zapad-600/90 px-4 py-3 text-center text-sm font-bold text-white"
         >
           Přihlášení přes Google se nedokončilo. Zkus to prosím znovu nebo
-          použij e-mail.
+          použij telefon.
         </p>
       )}
 
@@ -52,7 +55,7 @@ export default async function PrihlaseniPage({
       </div>
 
       <p className="text-center text-xs leading-relaxed text-kokos-50/60">
-        Přihlášením souhlasíš se zpracováním e-mailu pro účely věrnostního
+        Přihlášením souhlasíš se zpracováním telefonu a následně zadaného e-mailu pro účely věrnostního
         programu. Detaily v{" "}
         <a href="/pravidla" className="odkaz">
           pravidlech

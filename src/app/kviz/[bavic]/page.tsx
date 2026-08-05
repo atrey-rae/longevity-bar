@@ -1,23 +1,37 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
-import KvizFlow from "@/components/KvizFlow";
-import { BAVICI, najitBavice } from "@/lib/kviz";
+import QuizVariantSelector from "@/components/QuizVariantSelector";
+import {
+  BAVICI,
+  PUBLIC_WEB_QUIZ_HOST,
+  najitBavice,
+} from "@/lib/kviz";
+import { getHostQuizVariant } from "@/lib/kviz-hosts";
+import { completedQuizVariants, getQuizPolicy } from "@/lib/quiz-access";
+import { getSessionUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Odemkni potenciál svého mikrobiomu — kvíz",
 };
 
-/** Šest bavičů = šest statických stránek, žádná jiná adresa neexistuje. */
+/** Šest bavičů a samostatný veřejný vstup z rozcestníku Bar.app. */
 export function generateStaticParams(): { bavic: string }[] {
-  return BAVICI.map((b) => ({ bavic: b.slug }));
+  return [...BAVICI, PUBLIC_WEB_QUIZ_HOST].map((b) => ({ bavic: b.slug }));
 }
 
 export const dynamicParams = false;
+export const dynamic = "force-dynamic";
 
 /**
+ * Znovu ověřit variantu nejpozději po 30 s — bez tohohle by šest stránek
+ * zůstalo staticky vygenerovaných při buildu a přepnutí varianty v
+ * `quiz_hosts` by se na festivalu neprojevilo bez redeploye.
+ */
+/**
  * Kvíz z QR kódu baviče fronty — `/kviz/<bavic>`.
- * Veřejné, bez přihlášení: návštěvník naskenuje, odpoví, dostane kupón 21 %.
+ * Přístup řídí serverová politika v Supabase. Při ANO se před volbou varianty
+ * vyžaduje telefonní login a návratová URL zachová baviče.
  */
 export default async function KvizPage({
   params,
@@ -28,9 +42,21 @@ export default async function KvizPage({
   const bavic = najitBavice(slug);
   if (!bavic) notFound();
 
+  const [policy, user, varianta] = await Promise.all([
+    getQuizPolicy(),
+    getSessionUser(),
+    bavic.kod === PUBLIC_WEB_QUIZ_HOST.kod
+      ? Promise.resolve("microbiom" as const)
+      : getHostQuizVariant(bavic.kod),
+  ]);
+  if (policy.loginRequired && !user) {
+    redirect(`/prihlaseni?next=${encodeURIComponent(`/kviz/${bavic.slug}`)}`);
+  }
+  const completed = await completedQuizVariants(user?.id ?? null);
+
   return (
     <div className="obal">
-      <KvizFlow bavic={bavic} />
+      <QuizVariantSelector bavic={bavic} recommended={varianta} completed={completed} />
     </div>
   );
 }

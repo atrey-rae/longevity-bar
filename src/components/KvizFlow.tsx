@@ -179,9 +179,8 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             <p className="mx-auto max-w-[20rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
               {oblibeny ? (
                 <>
-                  Najdi ten svůj — na{" "}
-                  <strong className="text-mango-400">jeden produkt</strong>{" "}
-                  dostaneš kupón {SLEVA_PROCENT}&nbsp;%.
+                  Najdi ten svůj — na který produkt chceš mít až do konce roku
+                  slevu {SLEVA_PROCENT}&nbsp;%?
                 </>
               ) : (
                 <>
@@ -256,6 +255,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
           <form action={akce} className="karta space-y-2.5">
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
+            <input type="hidden" name="quiz_variant" value="microbiom" />
 
             <input
               name="jmeno"
@@ -309,9 +309,10 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             )}
 
             <p className="px-1 text-center text-[0.6875rem] leading-relaxed text-kokos-50/80">
-              Kontakt použijeme na poslání kupónu a pár přátelských zpráv od
-              WILD&amp;COCO — max. 6 během půl roku. Kdykoli se můžeš odhlásit,
-              detaily v Pravidlech níže.
+              Kontakt použijeme na poslání kupónu a Longevity tipů od
+              WILD&amp;COCO nejdéle do 31.&nbsp;12.&nbsp;2026 (max. 6 zpráv).
+              Souhlas můžeš kdykoli odvolat, detaily v Pravidlech níže.
+              Odpovědi z kvízu si neukládáme.
             </p>
           </form>
         </section>

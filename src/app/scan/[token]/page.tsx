@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { awardStamp, type ScanResult } from "@/lib/loyalty-server";
+import { postLoginDestinationForDayQr } from "@/lib/scan-entry";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionUser } from "@/lib/supabase/server";
+import { pragueDateString } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +26,15 @@ export default async function SkenPage({
   const user = await getSessionUser();
 
   if (!user) {
+    const admin = createAdminClient();
+    const { data: day } = await admin
+      .from("event_days")
+      .select("active, date")
+      .eq("token", token)
+      .maybeSingle();
+    const next = postLoginDestinationForDayQr(token, day, pragueDateString());
     redirect(
-      `/prihlaseni?next=${encodeURIComponent(`/scan/${encodeURIComponent(token)}`)}`,
+      `/prihlaseni?next=${encodeURIComponent(next)}`,
     );
   }
 
@@ -41,5 +51,5 @@ export default async function SkenPage({
   if (vysledek.dayDate) qs.set("den", vysledek.dayDate);
   if (vysledek.newReward) qs.set("vyhra", "1");
 
-  redirect(`/?${qs.toString()}`);
+  redirect(`/odmeny?${qs.toString()}`);
 }

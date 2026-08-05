@@ -34,6 +34,24 @@ export const KUPON_PODMINKY_FALLBACK =
 export const ESHOP_URL = "https://www.wildandcoco.com";
 
 /* -------------------------------------------------------------------------- */
+/* Varianty kvízu                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Která verze kvízu se z QR kódu baviče otevře.
+ *
+ * Literál je záměrně zduplikovaný v `lib/types.ts` (tam mapuje sloupec
+ * `quiz_leads.quiz_variant`) — `lib/kviz.ts` zůstává bez importů, aby ho
+ * kontrolní skripty v `scripts/` mohly načíst přímo přes `tsx`.
+ */
+export type QuizVariant = "microbiom" | "profil";
+
+export const QUIZ_VARIANTS: QuizVariant[] = ["microbiom", "profil"];
+
+/** Fallback všude, kde varianta chybí nebo je nečitelná. */
+export const DEFAULT_QUIZ_VARIANT: QuizVariant = "microbiom";
+
+/* -------------------------------------------------------------------------- */
 /* Baviči fronty                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -54,8 +72,22 @@ export const BAVICI: Bavic[] = [
   { slug: "f6", kod: "F6", jmeno: "Leonardo" },
 ];
 
+/**
+ * Veřejný vstup do kvízu z rozcestníku Bar.app.
+ *
+ * Není členem `BAVICI`: nemá se objevit jako sedmý bavič v Healing dashboardu
+ * ani ve statistikách a nastavení týmu. Je ale plnohodnotným zdrojem leadu a
+ * osobního kupónu pod kódem `WEB`.
+ */
+export const PUBLIC_WEB_QUIZ_HOST: Bavic = {
+  slug: "web",
+  kod: "WEB",
+  jmeno: "Longevity Bar",
+};
+
 export function najitBavice(slug: string): Bavic | undefined {
   const hledany = slug.trim().toLowerCase();
+  if (hledany === PUBLIC_WEB_QUIZ_HOST.slug) return PUBLIC_WEB_QUIZ_HOST;
   return BAVICI.find((b) => b.slug === hledany);
 }
 

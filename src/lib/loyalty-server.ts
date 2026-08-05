@@ -21,6 +21,8 @@ import { getSettings, type AppSettings } from "./settings";
 import { createAdminClient } from "./supabase/admin";
 import { pragueDateString, pragueDayRange } from "./time";
 import type { Product, Reward } from "./types";
+import { isInternalAuthEmail } from "./phone-auth";
+import { requireVerifiedEmailForReward } from "./email-verification-server";
 
 /** Kód porušení unikátního indexu v Postgresu. */
 const UNIQUE_VIOLATION = "23505";
@@ -58,7 +60,7 @@ export async function ensureProfile(user: User): Promise<void> {
   await admin.from("profiles").upsert(
     {
       id: user.id,
-      email: user.email ?? null,
+      email: user.email && !isInternalAuthEmail(user.email) ? user.email : null,
       full_name: fullName,
     },
     { onConflict: "id", ignoreDuplicates: true },
@@ -301,6 +303,7 @@ export async function awardStamp(
 
 export type SelectStatus =
   | "ok"
+  | "email_unverified"
   | "no_reward"
   | "already_selected"
   | "bad_product"
@@ -316,6 +319,8 @@ export async function selectRewardProduct(
   userId: string,
   productId: string,
 ): Promise<SelectResult> {
+  const emailAccess = await requireVerifiedEmailForReward(userId);
+  if (!emailAccess.allowed) return { status: "email_unverified" };
   const admin = createAdminClient();
   const state = await getLoyaltyState(userId);
   const reward = state.openReward;
@@ -359,6 +364,7 @@ export async function selectRewardProduct(
 
 export type RedeemStatus =
   | "ok"
+  | "email_unverified"
   | "already_redeemed"
   | "not_selected"
   | "not_found"
@@ -378,6 +384,8 @@ export async function redeemReward(
   rewardId: string,
   pin?: string | null,
 ): Promise<RedeemResult> {
+  const emailAccess = await requireVerifiedEmailForReward(userId);
+  if (!emailAccess.allowed) return { status: "email_unverified" };
   const admin = createAdminClient();
   const settings = await getSettings();
 

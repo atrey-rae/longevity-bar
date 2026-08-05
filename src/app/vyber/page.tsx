@@ -20,7 +20,7 @@ export default async function VyberPage() {
   const odmena = stav.openReward;
 
   // Nemá nárok → zpět na kartu. Už vybráno → rovnou na vstupenku.
-  if (!odmena) redirect("/");
+  if (!odmena) redirect("/odmeny");
   if (odmena.state === "selected") redirect(`/odmena/${odmena.id}`);
 
   const produkty = await listActiveProducts(odmena.category);
@@ -46,7 +46,7 @@ export default async function VyberPage() {
         obsluze u pokladny.
       </p>
 
-      <Link href="/" className="tlacitko-vedlejsi">
+      <Link href="/odmeny" className="tlacitko-vedlejsi">
         Zpět na kartu
       </Link>
     </div>

@@ -1,370 +1,152 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
-import Konfety from "@/components/Konfety";
-import RazitkovaKarta from "@/components/RazitkovaKarta";
-import SkenHlaska from "@/components/SkenHlaska";
-import { isCurrentUserAdmin } from "@/lib/admin-guard";
-import {
-  CATEGORIES,
-  CATEGORY_EMOJI,
-  CATEGORY_LABEL,
-  CATEGORY_LABEL_LONG,
-  STAMPS_PER_TIER,
-  cycleForTierIndex,
-  tierNumberForIndex,
-} from "@/lib/loyalty";
-import {
-  ensureProfile,
-  getLoyaltyState,
-  getProductsByIds,
-  getProfileContact,
-} from "@/lib/loyalty-server";
-import { ulozitKontakt } from "./actions";
-import { prvni } from "@/lib/navigation";
-import { razitka } from "@/lib/text";
-import { formatCzechDateTime } from "@/lib/time";
+import { getEmailStatus } from "@/lib/email-verification-server";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function DomuPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = await searchParams;
+export const metadata: Metadata = {
+  title: "Longevity Bar",
+  description:
+    "Odměny, mikrobiomový kvíz a festivalový sortiment Longevity Baru od WILD&COCO.",
+};
+
+const PASSPORTS = [
+  {
+    href: "/odmeny",
+    eyebrow: "Věrnostní karta",
+    title: "Získej dárky na Longevity baru",
+    copy: "Sbírej razítka za návštěvy a vybírej si odměny, které ti chutnají.",
+    number: "01",
+    accent: "from-mango-400 to-zapad-500",
+    ink: "text-inkoust",
+  },
+  {
+    href: "/kviz/web",
+    eyebrow: "Pár rychlých otázek",
+    title: "Kvíz o Tvém mikrobiomu",
+    copy: "Najdi chuťový směr a produkty WILD&COCO, které by tě mohly bavit.",
+    number: "02",
+    accent: "from-laguna-400 to-laguna-600",
+    ink: "text-kokos-50",
+  },
+  {
+    href: "/sortiment/longevity",
+    eyebrow: "Co ochutnáš na místě",
+    title: "Projdi si náš Longevity Bar sortiment",
+    copy: "Nápoje, káva, kakao, jídlo i festivalové speciality v jednom přehledu.",
+    number: "03",
+    accent: "from-kokos-50 to-kokos-200",
+    ink: "text-inkoust",
+  },
+  {
+    href: "/sortiment/wild-coco",
+    eyebrow: "Vezmi si WILD&COCO domů",
+    title: "Projdi si náš WILD&COCO sortiment",
+    copy: "Objev fermentované kokosové produkty, rostlinná jídla a naše další favority.",
+    number: "04",
+    accent: "from-zapad-500 to-mango-600",
+    ink: "text-inkoust",
+  },
+] as const;
+
+export default async function Homepage() {
   const user = await getSessionUser();
-
-  if (!user) return <Uvitani chyba={prvni(sp.chyba)} />;
-
-  await ensureProfile(user);
-  const stav = await getLoyaltyState(user.id);
-  const jeAdmin = await isCurrentUserAdmin(user);
-  const kontakt = await getProfileContact(user.id);
-
-  const sken = prvni(sp.sken);
-  const jeVyhra = prvni(sp.vyhra) === "1";
-  const { summary, openReward, openRewardProduct } = stav;
-
-  const historie = stav.rewards.filter((r) => r.state === "redeemed").reverse();
-  const produktyHistorie = await getProductsByIds(
-    historie.map((r) => r.product_id),
-  );
-
-  const zvyraznitPosledni = sken === "ok";
-  const konfety = sken === "ok" || jeVyhra || openReward?.state === "ready";
+  const emailStatus = user ? await getEmailStatus(user.id) : null;
 
   return (
     <div className="obal space-y-5">
-      {konfety && <Konfety kusu={jeVyhra ? 70 : 40} />}
-
-      <SkenHlaska
-        status={sken}
-        min={Number(prvni(sp.min)) || undefined}
-        limit={Number(prvni(sp.limit)) || undefined}
-        den={prvni(sp.den)}
-      />
-
-      {prvni(sp.chyba) === "pristup" && (
-        <p className="rounded-2xl border-2 border-zapad-500/60 bg-zapad-500/25 px-4 py-3 text-sm font-bold">
-          Do administrace nemáš přístup.
-        </p>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Nevyzvednutá odměna                                              */}
-      {/* ---------------------------------------------------------------- */}
-      {openReward?.state === "ready" && (
-        <section className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 p-5 text-center shadow-karta">
-          <p className="text-sm font-black uppercase tracking-widest text-inkoust/70">
-            Tvoje tělo jásá, posouváš se na Level{" "}
-            {tierNumberForIndex(openReward.tier_index + 1)}!
-          </p>
-          <h1 className="mt-1 text-4xl font-black text-inkoust">Vyhráváš! 🎉</h1>
-          <p className="mt-2 text-lg font-bold text-inkoust/85">
-            {CATEGORY_LABEL_LONG[openReward.category]}
-          </p>
-          <Link
-            href="/vyber"
-            className="tlacitko mt-4 bg-inkoust text-mango-400 shadow-tlacitko"
-          >
-            Vyber si odměnu →
-          </Link>
-        </section>
-      )}
-
-      {openReward?.state === "selected" && (
-        <section className="rounded-3xl border-4 border-white/80 bg-white/95 p-5 text-center text-inkoust shadow-karta">
-          <p className="text-sm font-black uppercase tracking-widest text-inkoust/60">
-            Odměna čeká na vyzvednutí
-          </p>
-          <p className="mt-2 text-3xl" aria-hidden>
-            {openRewardProduct?.emoji ?? CATEGORY_EMOJI[openReward.category]}
-          </p>
-          <h2 className="text-2xl font-black">
-            {openRewardProduct?.name ?? CATEGORY_LABEL[openReward.category]}
-          </h2>
-          <Link
-            href={`/odmena/${openReward.id}`}
-            className="tlacitko-zapad mt-4"
-          >
-            Ukázat u pokladny
-          </Link>
-        </section>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Kontakt pro speciální výhry — zobrazuje se, dokud není vyplněný    */}
-      {/* ---------------------------------------------------------------- */}
-      {(!kontakt.fullName || !kontakt.phone) && (
-        <section className="karta space-y-3">
-          <h2 className="text-base font-black uppercase tracking-widest text-mango-400">
-            Speciální výhry 🎁
-          </h2>
-          <p className="text-sm text-kokos-50/85">
-            Nech nám křestní jméno a telefon — ať tě u baru poznáme a můžeme ti
-            poslat speciální výhry.
-          </p>
-          <form action={ulozitKontakt} className="space-y-2">
-            <input
-              name="jmeno"
-              required
-              maxLength={80}
-              defaultValue={kontakt.fullName ?? ""}
-              placeholder="Křestní jméno"
-              className="vstup"
-              autoComplete="given-name"
-            />
-            <input
-              name="telefon"
-              required
-              type="tel"
-              defaultValue={kontakt.phone ?? ""}
-              placeholder="Telefon (např. 601 123 456)"
-              className="vstup"
-              autoComplete="tel"
-            />
-            <button type="submit" className="tlacitko-zapad w-full">
-              Uložit
-            </button>
-          </form>
-        </section>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Splněný level po vydání odměny — zůstává jako jeden boxík          */}
-      {/* ---------------------------------------------------------------- */}
-      {!openReward && !summary.cycleFinished && historie.length > 0 && (
-        <section className="rounded-3xl border-2 border-mango-400/70 bg-white/10 px-4 py-3 text-center">
-          <p className="text-sm font-black text-mango-400">
-            Level {tierNumberForIndex(historie[0].tier_index)} splněný ✓ —
-            Tvoje tělo jásá, posouváš se na Level{" "}
-            {tierNumberForIndex(historie[0].tier_index + 1)}!
-          </p>
-        </section>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Věrnostní karta                                                   */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="karta space-y-4">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-mango-400">
-              Level {summary.upcomingTierNumber}
-              {stav.rewards.length >= 3 &&
-                ` · ${cycleForTierIndex(stav.rewards.length)}. kolo`}
-            </p>
-            <h2 className="mt-0.5 flex items-center gap-2">
-              <span aria-hidden>{CATEGORY_EMOJI[summary.upcoming]}</span>
-              {CATEGORY_LABEL[summary.upcoming]}
-            </h2>
-          </div>
-          <p className="whitespace-nowrap text-4xl font-black tabular-nums text-mango-400">
-            {summary.filled}
-            <span className="text-xl text-kokos-50/60">/{STAMPS_PER_TIER}</span>
-          </p>
-        </div>
-
-        <RazitkovaKarta
-          zaplneno={summary.filled}
-          zvyraznitPosledni={zvyraznitPosledni}
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-inkoust/[0.45] px-5 pb-6 pt-7 shadow-karta">
+        <div
+          aria-hidden
+          className="absolute -right-12 -top-16 h-48 w-48 rounded-full border-[32px] border-mango-400/15"
         />
-
-        <p className="text-center text-base font-semibold text-kokos-50/90">
-          {summary.cycleFinished ? (
-            <>Máš hotovo všechny tři odměny. Díky, že jsi s námi! 💛</>
-          ) : summary.toNext === 0 ? (
-            <>Karta je plná — vyber si odměnu výše ☝️</>
-          ) : (
-            <>
-              Ještě {razitka(summary.toNext)} a máš{" "}
-              <strong className="text-mango-400">
-                {CATEGORY_LABEL[summary.upcoming].toLowerCase()}
-              </strong>{" "}
-              zdarma.
-            </>
-          )}
+        <div
+          aria-hidden
+          className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-laguna-400/15 blur-2xl"
+        />
+        <p className="relative text-xs font-black uppercase tracking-[0.22em] text-mango-400">
+          Healing Festival · Světlá nad Sázavou
         </p>
-
-        {summary.available > STAMPS_PER_TIER && (
-          <p className="rounded-xl bg-white/10 px-3 py-2 text-center text-xs font-semibold text-kokos-50/80">
-            Máš navíc {razitka(summary.available - STAMPS_PER_TIER)} naspořeno
-            na další odměnu — nic ti nepropadá.
-          </p>
-        )}
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Přehled tierů                                                     */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="karta space-y-3">
-        <h2 className="text-base font-black uppercase tracking-widest text-kokos-50/70">
-          Odměny po 4 razítkách
-        </h2>
-        <ol className="space-y-2">
-          {CATEGORIES.map((kat, i) => {
-            const aktivni = tierNumberForIndex(stav.rewards.length) === i + 1;
-            return (
-              <li
-                key={kat}
-                className={[
-                  "flex items-center gap-3 rounded-2xl px-3 py-2.5 transition",
-                  aktivni
-                    ? "bg-mango-400 text-inkoust"
-                    : "bg-white/5 text-kokos-50/80",
-                ].join(" ")}
-              >
-                <span className="text-2xl" aria-hidden>
-                  {CATEGORY_EMOJI[kat]}
-                </span>
-                <span className="flex-1 text-sm font-bold">
-                  {i + 1}. {CATEGORY_LABEL_LONG[kat]}
-                </span>
-                {aktivni && (
-                  <span className="odznak bg-inkoust text-mango-400">teď</span>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-        <p className="text-xs text-kokos-50/60">
-          Po třetí odměně se cyklus opakuje od začátku. Celkem máš{" "}
-          {razitka(stav.totalStamps)}.
-        </p>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Historie                                                          */}
-      {/* ---------------------------------------------------------------- */}
-      {historie.length > 0 && (
-        <section className="karta space-y-3">
-          <h2 className="text-base font-black uppercase tracking-widest text-kokos-50/70">
-            Vyzvednuté odměny
-          </h2>
-          <ul className="space-y-2">
-            {historie.map((r) => {
-              const p = r.product_id
-                ? produktyHistorie.get(r.product_id)
-                : undefined;
-              return (
-                <li
-                  key={r.id}
-                  className="flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5"
-                >
-                  <span className="text-2xl" aria-hidden>
-                    {p?.emoji ?? CATEGORY_EMOJI[r.category]}
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-bold">
-                      {p?.name ?? CATEGORY_LABEL[r.category]}
-                    </span>
-                    <span className="block text-xs text-kokos-50/60">
-                      {formatCzechDateTime(r.redeemed_at)}
-                    </span>
-                  </span>
-                  <span className="odznak bg-list-500/25 text-list-500">
-                    ✓ vydáno
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* Účet                                                              */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-kokos-50/60">
-        <span className="truncate">{user.email}</span>
-        <span className="flex items-center gap-3">
-          {jeAdmin && (
-            <Link href="/admin" className="odkaz font-bold text-mango-400">
-              Administrace
-            </Link>
-          )}
-          <form action="/auth/odhlasit" method="post">
-            <button type="submit" className="odkaz">
-              Odhlásit
-            </button>
-          </form>
-        </span>
-      </section>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Nepřihlášený návštěvník                                                     */
-/* -------------------------------------------------------------------------- */
-
-function Uvitani({ chyba }: { chyba?: string }) {
-  return (
-    <div className="obal space-y-6">
-      {chyba === "pristup" && (
-        <p className="rounded-2xl border-2 border-zapad-500/60 bg-zapad-500/25 px-4 py-3 text-sm font-bold">
-          Do administrace nemáš přístup.
-        </p>
-      )}
-
-      <div className="text-center">
-        <div className="mb-3 text-7xl animate-plovouci" aria-hidden>
-          🥥
-        </div>
-        <h1 className="text-stin">
-          Sbírej razítka,
-          <br />
-          <span className="text-mango-400">pij zdarma</span>
+        <h1 className="relative mt-3 max-w-sm text-[2.15rem] leading-[1.04] sm:text-4xl">
+          Vyber si svůj zážitek v Longevity Baru
         </h1>
-        <p className="mx-auto mt-3 max-w-sm text-base text-kokos-50/85">
-          Za každý nákup na Longevity Baru dostaneš razítko. Čtyři razítka = jedna
-          odměna dle tvého výběru.
+        <p className="relative mt-4 max-w-sm text-sm leading-relaxed text-kokos-50/[0.78]">
+          Od první ochutnávky až po odměnu. Vše, co potřebuješ, najdeš tady.
         </p>
-      </div>
+      </section>
 
-      <div className="karta space-y-3">
-        {CATEGORIES.map((kat, i) => (
-          <div key={kat} className="flex items-center gap-3">
-            <span className="text-3xl" aria-hidden>
-              {CATEGORY_EMOJI[kat]}
+      {user && emailStatus && !emailStatus.verified && (
+        <Link
+          href="/odmeny"
+          className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-mango-300/70 bg-mango-400 px-4 py-3 text-inkoust shadow-tlacitko transition active:translate-y-0.5"
+        >
+          <span>
+            <span className="block text-xs font-black uppercase tracking-wider">
+              Odměny ještě čekají
             </span>
-            <span className="text-sm font-bold">
-              {i + 1}. {CATEGORY_LABEL_LONG[kat]}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <Link href="/prihlaseni" className="tlacitko-hlavni">
-        Založit věrnostní kartu
-      </Link>
-
-      <p className="text-center text-sm text-kokos-50/70">
-        Kartu si otevřeš i sejmutím QR kódu u pokladny.{" "}
-        <Link href="/pravidla" className="odkaz">
-          Pravidla
+            <span className="block text-base font-black">Potvrď e-mail</span>
+          </span>
+          <span aria-hidden className="text-2xl font-light">
+            →
+          </span>
         </Link>
+      )}
+
+      <nav aria-label="Co chceš v Longevity Baru zažít" className="space-y-3">
+        {PASSPORTS.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`group relative flex min-h-[9rem] overflow-hidden rounded-[1.65rem] bg-gradient-to-br ${item.accent} ${item.ink} p-5 shadow-karta transition hover:-translate-y-0.5 active:translate-y-0`}
+          >
+            <span
+              aria-hidden
+              className="absolute -bottom-7 -right-1 text-[7.5rem] font-black leading-none opacity-[0.09]"
+            >
+              {item.number}
+            </span>
+            <span className="relative flex w-full flex-col justify-between gap-5">
+              <span>
+                <span className="block text-[0.68rem] font-black uppercase tracking-[0.2em] opacity-[0.65]">
+                  {item.eyebrow}
+                </span>
+                <span className="mt-1.5 block max-w-[18rem] text-xl font-black leading-tight">
+                  {item.title}
+                </span>
+              </span>
+              <span className="flex items-end justify-between gap-4">
+                <span className="max-w-[18rem] text-xs font-semibold leading-relaxed opacity-75">
+                  {item.copy}
+                </span>
+                <span
+                  aria-hidden
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-current/25 bg-white/10 text-xl transition group-hover:translate-x-1"
+                >
+                  →
+                </span>
+              </span>
+            </span>
+          </Link>
+        ))}
+      </nav>
+
+      <p className="px-3 text-center text-xs leading-relaxed text-kokos-50/60">
+        {user ? (
+          <>
+            Jsi přihlášený. Věrnostní kartu a nastavení účtu najdeš v{" "}
+            <Link href="/odmeny" className="odkaz font-bold text-kokos-50/80">
+              odměnách
+            </Link>
+            .
+          </>
+        ) : (
+          <>
+            Pro prohlížení sortimentu se přihlašovat nemusíš. Přihlášení
+            potřebuješ pro věrnostní kartu a před vstupem do kvízu.
+          </>
+        )}
       </p>
     </div>
   );

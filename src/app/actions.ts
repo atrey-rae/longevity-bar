@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionUser } from "@/lib/supabase/server";
+import { isInternalAuthEmail } from "@/lib/phone-auth";
 
 /**
  * Uloží kontakt zákazníka (křestní jméno + telefon pro speciální výhry).
@@ -28,8 +29,13 @@ export async function ulozitKontakt(formData: FormData): Promise<void> {
 
   const admin = createAdminClient();
   await admin.from("profiles").upsert(
-    { id: user.id, email: user.email ?? null, full_name: jmeno, phone: telefon },
+    {
+      id: user.id,
+      email: user.email && !isInternalAuthEmail(user.email) ? user.email : undefined,
+      full_name: jmeno,
+      phone: telefon,
+    },
     { onConflict: "id" },
   );
-  revalidatePath("/");
+  revalidatePath("/odmeny");
 }

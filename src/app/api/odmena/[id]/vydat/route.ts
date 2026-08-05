@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const ZPRAVY: Record<string, string> = {
+  email_unverified: "Nejdřív potvrď svůj e-mail. Poslali jsme ti nový ověřovací e-mail, pokud od posledního uběhlo alespoň 10 minut.",
   already_redeemed: "Tahle odměna už byla vydaná.",
   not_selected: "Nejdřív je potřeba vybrat konkrétní produkt.",
   not_found: "Odměnu se nepodařilo najít.",
@@ -48,7 +49,7 @@ export async function POST(
   const kod =
     vysledek.status === "not_found"
       ? 404
-      : vysledek.status === "bad_pin"
+      : vysledek.status === "bad_pin" || vysledek.status === "email_unverified"
         ? 403
         : vysledek.status === "error"
           ? 500

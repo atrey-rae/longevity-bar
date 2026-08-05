@@ -12,6 +12,44 @@ export type Profile = {
   full_name: string | null;
   /** Telefon pro speciální výhry — zadává zákazník v appce (migrace 002). */
   phone: string | null;
+  /** Reálný kontaktní e-mail. Interní auth alias se sem nikdy nezapisuje. */
+  email_verified_at: string | null;
+  last_activation_email_at: string | null;
+  created_at: string;
+}
+
+export type PhoneIdentity = {
+  phone_e164: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PhoneAuthChallenge = {
+  id: string;
+  phone_e164: string;
+  pin_hash: string;
+  ip_hash: string;
+  expires_at: string;
+  attempts: number;
+  consumed_at: string | null;
+  created_at: string;
+}
+
+export type EmailActivationToken = {
+  id: string;
+  user_id: string;
+  email: string;
+  token_hash: string;
+  expires_at: string;
+  consumed_at: string | null;
+  created_at: string;
+}
+
+export type PhoneIdentityConflict = {
+  id: string;
+  phone_e164: string;
+  matching_user_ids: string[];
   created_at: string;
 }
 
@@ -63,6 +101,9 @@ export type Setting = {
   updated_at: string;
 }
 
+/** Varianta kvízu (migrace 004). Stejný literál je i v `lib/kviz.ts`. */
+export type QuizVariant = "microbiom" | "profil";
+
 /** Lead z kvízu bavičů fronty — `/kviz/[bavic]` (migrace 003). */
 export type QuizLead = {
   id: string;
@@ -74,7 +115,38 @@ export type QuizLead = {
   first_name: string;
   email: string;
   phone: string;
+  /** Ze které varianty kvízu lead vznikl (migrace 004). */
+  quiz_variant: QuizVariant;
   created_at: string;
+}
+
+/**
+ * Nastavení varianty kvízu pro jednoho baviče (migrace 004).
+ * `code` = kód baviče z kupónu (A1–F6).
+ */
+export type QuizHost = {
+  code: string;
+  variant: QuizVariant;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export type QuizSetting = {
+  singleton: boolean;
+  quiz_login_required: boolean;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export type QuizCompletion = {
+  id: string;
+  user_id: string | null;
+  contact_hash: string | null;
+  quiz_variant: QuizVariant;
+  bavic_code: string;
+  status: "pending" | "completed";
+  created_at: string;
+  completed_at: string | null;
 }
 
 /**
@@ -97,6 +169,39 @@ export interface Database {
         Profile,
         Partial<Profile> & { id: string },
         Partial<Profile>
+      >;
+      phone_identities: Tabulka<
+        PhoneIdentity,
+        Partial<PhoneIdentity> & { phone_e164: string; user_id: string },
+        Partial<PhoneIdentity>
+      >;
+      phone_auth_challenges: Tabulka<
+        PhoneAuthChallenge,
+        Partial<PhoneAuthChallenge> & {
+          phone_e164: string;
+          pin_hash: string;
+          ip_hash: string;
+          expires_at: string;
+        },
+        Partial<PhoneAuthChallenge>
+      >;
+      email_activation_tokens: Tabulka<
+        EmailActivationToken,
+        Partial<EmailActivationToken> & {
+          user_id: string;
+          email: string;
+          token_hash: string;
+          expires_at: string;
+        },
+        Partial<EmailActivationToken>
+      >;
+      phone_identity_conflicts: Tabulka<
+        PhoneIdentityConflict,
+        Partial<PhoneIdentityConflict> & {
+          phone_e164: string;
+          matching_user_ids: string[];
+        },
+        Partial<PhoneIdentityConflict>
       >;
       event_days: Tabulka<
         EventDay,
@@ -129,15 +234,47 @@ export interface Database {
       >;
       quiz_leads: Tabulka<
         QuizLead,
-        Omit<QuizLead, "id" | "created_at"> & {
+        // `quiz_variant` je volitelný i tady, přestože je v `QuizLead` povinný:
+        // DB sloupec má default 'microbiom', takže insert bez něj je platný —
+        // nutné pro degradovaný zápis, pokud migrace 004 ještě neproběhla
+        // (viz `app/kviz/actions.ts`).
+        Omit<QuizLead, "id" | "created_at" | "quiz_variant"> & {
           id?: string;
           created_at?: string;
+          quiz_variant?: QuizVariant;
         },
         Partial<QuizLead>
       >;
+      quiz_hosts: Tabulka<
+        QuizHost,
+        Partial<QuizHost> & { code: string },
+        Partial<QuizHost>
+      >;
+      quiz_settings: Tabulka<
+        QuizSetting,
+        Partial<QuizSetting> & { singleton: boolean },
+        Partial<QuizSetting>
+      >;
+      quiz_completions: Tabulka<
+        QuizCompletion,
+        Partial<QuizCompletion> & {
+          quiz_variant: QuizVariant;
+          bavic_code: string;
+        },
+        Partial<QuizCompletion>
+      >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      consume_phone_auth_challenge: {
+        Args: {
+          p_id: string;
+          p_phone_e164: string;
+          p_pin_hash: string;
+        };
+        Returns: string;
+      };
+    };
     Enums: {
       product_category: ProductCategory;
       reward_state: RewardState;

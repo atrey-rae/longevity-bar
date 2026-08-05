@@ -37,7 +37,7 @@ export default async function AdminLayout({
           </Link>
         ))}
         <Link
-          href="/"
+          href="/odmeny"
           className="ml-auto text-xs font-semibold text-kokos-50/60 underline underline-offset-4"
         >
           zpět do appky

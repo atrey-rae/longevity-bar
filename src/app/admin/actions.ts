@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
 import { availableStamps } from "@/lib/loyalty";
 import { getLoyaltyState } from "@/lib/loyalty-server";
+import { requireVerifiedEmailForReward } from "@/lib/email-verification-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -177,6 +178,9 @@ export async function oznacitVydano(formData: FormData): Promise<void> {
   const userId = text(formData, "userId");
   const email = text(formData, "email");
   if (!rewardId) return;
+
+  // Ani administrátorská zkratka nesmí vydat odměnu neověřenému účtu.
+  if (!userId || !(await requireVerifiedEmailForReward(userId)).allowed) return;
 
   const admin = createAdminClient();
   await admin

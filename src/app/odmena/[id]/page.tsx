@@ -53,7 +53,7 @@ export default async function OdmenaPage({
           </p>
         </div>
 
-        <Link href="/" className="tlacitko-hlavni">
+        <Link href="/odmeny" className="tlacitko-hlavni">
           Chci dál sbírat odměny
         </Link>
 
@@ -131,7 +131,7 @@ export default async function OdmenaPage({
         </p>
       </div>
 
-      <Link href="/" className="tlacitko-vedlejsi">
+      <Link href="/odmeny" className="tlacitko-vedlejsi">
         Zpět na kartu
       </Link>
     </div>

@@ -18,7 +18,7 @@ export async function requireAdmin(
   }
   const settings = await getSettings();
   if (!isAdminEmail(user.email, settings)) {
-    redirect("/?chyba=pristup");
+    redirect("/odmeny?chyba=pristup");
   }
   return { user, settings };
 }
