@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getEmailStatus } from "@/lib/email-verification-server";
+import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -51,11 +52,41 @@ const PASSPORTS = [
     accent: "from-zapad-500 to-mango-600",
     ink: "text-inkoust",
   },
+  {
+    href: "/darek",
+    eyebrow: "Dárek přátelům",
+    title: "Daruj kamarádům slevu 21 %",
+    copy: "Ukaž jim QR kód, vyplní kvíz a kupón jim přijde na e-mail.",
+    number: "05",
+    accent: "from-laguna-600 to-laguna-800",
+    ink: "text-kokos-50",
+  },
 ] as const;
+
+/**
+ * Karta kreditu se ukazuje JEN hostům, kteří ho v Healing.app opravdu mají —
+ * proto se nepřidává do `PASSPORTS`, ale skládá až podle odpovědi bridge.
+ */
+const KREDIT_KARTA = {
+  href: "/kredit",
+  eyebrow: "Máš u nás kredit",
+  title: "Kredit na Longevity Baru",
+  copy: "Vyber si, co si dáš, a ukaž objednávku obsluze u baru.",
+  number: "06",
+  accent: "from-mango-400 to-mango-600",
+  ink: "text-inkoust",
+} as const;
 
 export default async function Homepage() {
   const user = await getSessionUser();
-  const emailStatus = user ? await getEmailStatus(user.id) : null;
+  // Kredit i stav e-mailu jsou nezávislé — ať se čekání nesčítá.
+  const [emailStatus, kredit] = user
+    ? await Promise.all([getEmailStatus(user.id), barCreditProUzivatele(user.id)])
+    : [null, null];
+
+  const karty = kredit?.stav.eligible
+    ? [...PASSPORTS, KREDIT_KARTA]
+    : [...PASSPORTS];
 
   return (
     <div className="obal space-y-5">
@@ -97,7 +128,7 @@ export default async function Homepage() {
       )}
 
       <nav aria-label="Co chceš v Longevity Baru zažít" className="space-y-3">
-        {PASSPORTS.map((item) => (
+        {karty.map((item) => (
           <Link
             key={item.href}
             href={item.href}

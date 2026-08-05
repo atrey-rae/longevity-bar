@@ -123,6 +123,23 @@ overit(
     return r.ok === false && r.status === 404;
   })(),
 );
+for (const kod of ["G7", "H8", "I9"]) {
+  overit(
+    `nový bavič ${kod} smí přepnout variantu`,
+    parseQuizVariantUpdate({ bavic: kod, variant: "profil", actor: "Atrey" }).ok === true,
+  );
+}
+// Samostatné vstupy nejsou baviči: v dashboardu healing.app se nenabízejí,
+// takže je bridge nesmí ani přijmout. Variantu `TYM`/`VIT` mění jen SQL.
+for (const kod of ["WEB", "TYM", "VIT"]) {
+  overit(
+    `sdílený vstup ${kod} bridge odmítne jako neznámého baviče`,
+    (() => {
+      const r = parseQuizVariantUpdate({ bavic: kod, variant: "profil", actor: "Atrey" });
+      return r.ok === false && r.status === 404;
+    })(),
+  );
+}
 overit(
   "platné tělo projde a actor se zkrátí na 200 znaků",
   (() => {
@@ -154,7 +171,19 @@ const vstup = {
 
 const vysledek = buildHealingDashboard(vstup);
 
-overit("všech 6 bavičů je v odpovědi", vysledek.hosts.length === BAVICI.length);
+overit("všichni baviči z BAVICI jsou v odpovědi", vysledek.hosts.length === BAVICI.length);
+overit(
+  "noví baviči G7–I9 mají v dashboardu vlastní řádek",
+  ["G7", "H8", "I9"].every((kod) => vysledek.hosts.some((h) => h.code === kod)),
+);
+overit(
+  "samostatné vstupy WEB, TYM a VIT se do dashboardu nepočítají jako baviči",
+  !vysledek.hosts.some((h) => ["WEB", "TYM", "VIT"].includes(h.code)),
+);
+overit(
+  "nový bavič bez řádku v quiz_hosts spadá na microbiom",
+  vysledek.hosts.find((h) => h.code === "G7")?.variant === "microbiom",
+);
 
 const a1 = vysledek.hosts.find((h) => h.code === "A1");
 overit("A1 má nastavenou variantu profil", a1?.variant === "profil");

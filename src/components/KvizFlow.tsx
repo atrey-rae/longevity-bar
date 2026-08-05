@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
@@ -42,7 +43,14 @@ const PREDCHOZI: Record<Exclude<Krok, "uvod">, Krok> = {
  * kontakt, kupón. Celý stav žije v prohlížeči; server se volá až při odeslání
  * kontaktu.
  */
-export default function KvizFlow({ bavic }: { bavic: Bavic }) {
+export default function KvizFlow({
+  bavic,
+  referralKod = null,
+}: {
+  bavic: Bavic;
+  /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
+  referralKod?: string | null;
+}) {
   const [krok, setKrok] = useState<Krok>("uvod");
   const [q1, setQ1] = useState<OdpovedQ1 | null>(null);
   const [q2, setQ2] = useState<OdpovedQ2 | null>(null);
@@ -245,6 +253,9 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
             <input type="hidden" name="quiz_variant" value="microbiom" />
+            {referralKod && (
+              <input type="hidden" name="od" value={referralKod} />
+            )}
 
             <input
               name="jmeno"
@@ -490,6 +501,13 @@ function Vyhra({
       >
         Nakoupit na wildandcoco.com
       </a>
+
+      {/* Kvíz vyžaduje telefonní login, takže tady už je návštěvník přihlášený
+          — účet mu vznikl cestou. Sekundární CTA ho pustí rovnou do appky
+          (rozcestník), místo aby QR kód baviče končil slepou uličkou. */}
+      <Link href="/" className="tlacitko-vedlejsi text-[0.9375rem] tracking-[0.03em]">
+        Pokračovat do Longevity Bar appky →
+      </Link>
 
       <div className="karta space-y-2.5 text-center text-sm leading-relaxed text-kokos-50/90">
         <p>

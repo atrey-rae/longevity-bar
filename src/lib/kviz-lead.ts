@@ -19,6 +19,7 @@ import {
   type KvizProdukt,
   type QuizVariant,
 } from "./kviz";
+import { REFERRAL_PARAM, normalizovatReferralKod } from "./referral";
 import type { Database } from "./types";
 
 export type KvizFormVstup = {
@@ -28,6 +29,8 @@ export type KvizFormVstup = {
   jmeno: string;
   email: string;
   telefon: string;
+  /** Kód z `?od=` — `null`, když chyběl nebo neprošel validací. */
+  referralKod: string | null;
 };
 
 export type VysledekParsovani =
@@ -92,6 +95,9 @@ export function parseKvizFormData(formData: FormData): VysledekParsovani {
       jmeno,
       email,
       telefon,
+      // Na referralu se NIKDY nepadá: nesmysl v `?od=` se tiše zahodí a kvíz
+      // proběhne úplně stejně jako bez něj.
+      referralKod: normalizovatReferralKod(formData.get(REFERRAL_PARAM)),
     },
   };
 }
@@ -105,7 +111,12 @@ export function sestavitQuizLeadZaznam(input: {
   email: string;
   telefon: string;
   kod: string;
+  referralKod?: string | null;
 }): Database["public"]["Tables"]["quiz_leads"]["Insert"] {
+  // Kód se normalizuje ještě jednou — `sestavitQuizLeadZaznam` je jediná cesta
+  // do databáze a nesmí věřit ani vlastnímu volajícímu.
+  const referral = normalizovatReferralKod(input.referralKod ?? null);
+
   return {
     bavic: input.bavic.kod,
     product_slug: input.produkt.slug,
@@ -115,5 +126,8 @@ export function sestavitQuizLeadZaznam(input: {
     email: input.email,
     phone: input.telefon,
     quiz_variant: input.quizVariant,
+    // Klíč vzniká JEN u platného referralu — bez něj má řádek stejných osm
+    // sloupců jako dřív (hlídá `scripts/check-quiz-lead-payload.ts`).
+    ...(referral ? { referral_code: referral } : {}),
   };
 }

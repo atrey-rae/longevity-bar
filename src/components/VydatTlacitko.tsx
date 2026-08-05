@@ -10,15 +10,23 @@ type Stav = "klid" | "drzim" | "odesilam" | "hotovo" | "chyba";
 /**
  * Tlačítko VYDAT — vyžaduje podržení 3 sekundy (ochrana proti omylu
  * i proti tomu, aby si zákazník odměnu odklikl sám omylem).
- * Po dokončení POSTne na serverový endpoint, který odměnu znehodnotí.
+ * Po dokončení POSTne na serverový endpoint, který výdej zapíše.
+ *
+ * Dva režimy, jeden nebo druhý (typ je hlídá):
+ *   - `rewardId` — věrnostní odměna, `/api/odmena/<id>/vydat`,
+ *   - `endpoint` + `telo` — jiný výdej (kredit hosta na baru).
  */
+type VydatProps = { vyzadujePin?: boolean } & (
+  | { rewardId: string; endpoint?: undefined; telo?: undefined }
+  | { endpoint: string; telo?: Record<string, unknown>; rewardId?: undefined }
+);
+
 export default function VydatTlacitko({
   rewardId,
+  endpoint,
+  telo,
   vyzadujePin = false,
-}: {
-  rewardId: string;
-  vyzadujePin?: boolean;
-}) {
+}: VydatProps) {
   const router = useRouter();
   const [stav, setStav] = useState<Stav>("klid");
   const [postup, setPostup] = useState(0);
@@ -42,10 +50,10 @@ export default function VydatTlacitko({
     setStav("odesilam");
     setChyba(null);
     try {
-      const res = await fetch(`/api/odmena/${rewardId}/vydat`, {
+      const res = await fetch(endpoint ?? `/api/odmena/${rewardId}/vydat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pin || undefined }),
+        body: JSON.stringify({ ...(telo ?? {}), pin: pin || undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         status?: string;
@@ -69,7 +77,7 @@ export default function VydatTlacitko({
     } finally {
       setPostup(0);
     }
-  }, [pin, rewardId, router]);
+  }, [endpoint, pin, rewardId, telo, router]);
 
   const start = useCallback(() => {
     if (stav === "odesilam" || stav === "hotovo") return;

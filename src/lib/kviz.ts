@@ -61,21 +61,36 @@ export type Bavic = {
   /** Kód v kupónu (HEAL21-<kod>-<slug produktu>). */
   kod: string;
   jmeno: string;
+  /**
+   * `true` POUZE u hostů, pro které jsou v e-shopu předgenerované sdílené
+   * kupóny `HEAL21-<KOD>-<SLUG>` (původní šestka A1–F6 z mapovací tabulky).
+   * Jen u nich se smí při výpadku care-api spadnout na sdílený kód.
+   *
+   * Nevyplněno = kupóny neexistují → `app/kviz/actions.ts` vrací chybu místo
+   * neplatného odvozeného kódu. Výchozí stav je proto ten bezpečný: nový host
+   * je chráněný i tehdy, když se na tenhle příznak zapomene.
+   */
+  maSdileneKupony?: true;
 };
 
 export const BAVICI: Bavic[] = [
-  { slug: "a1", kod: "A1", jmeno: "Ivona" },
-  { slug: "b2", kod: "B2", jmeno: "Denisa" },
-  { slug: "c3", kod: "C3", jmeno: "Amae" },
-  { slug: "d4", kod: "D4", jmeno: "Atrey" },
-  { slug: "e5", kod: "E5", jmeno: "Kateřina" },
-  { slug: "f6", kod: "F6", jmeno: "Leonardo" },
+  { slug: "a1", kod: "A1", jmeno: "Ivona", maSdileneKupony: true },
+  { slug: "b2", kod: "B2", jmeno: "Denisa", maSdileneKupony: true },
+  { slug: "c3", kod: "C3", jmeno: "Amae", maSdileneKupony: true },
+  { slug: "d4", kod: "D4", jmeno: "Atrey", maSdileneKupony: true },
+  { slug: "e5", kod: "E5", jmeno: "Kateřina", maSdileneKupony: true },
+  { slug: "f6", kod: "F6", jmeno: "Leonardo", maSdileneKupony: true },
+  // Nová trojka bavičů (Atrey 5. 8. 2026) — sdílené kupóny pro G7–I9 v e-shopu
+  // předgenerované NEJSOU, jedou výhradně na osobním kupónu z care-api.
+  { slug: "g7", kod: "G7", jmeno: "Zuzanna" },
+  { slug: "h8", kod: "H8", jmeno: "Filip" },
+  { slug: "i9", kod: "I9", jmeno: "Veronika" },
 ];
 
 /**
  * Veřejný vstup do kvízu z rozcestníku Bar.app.
  *
- * Není členem `BAVICI`: nemá se objevit jako sedmý bavič v Healing dashboardu
+ * Není členem `BAVICI`: nemá se objevit jako další bavič v Healing dashboardu
  * ani ve statistikách a nastavení týmu. Je ale plnohodnotným zdrojem leadu a
  * osobního kupónu pod kódem `WEB`.
  */
@@ -85,10 +100,59 @@ export const PUBLIC_WEB_QUIZ_HOST: Bavic = {
   jmeno: "Longevity Bar",
 };
 
+/**
+ * Sdílený týmový vstup do kvízu — QR záložka Healing.app pro členy týmu,
+ * kteří nemají vlastní kód baviče.
+ *
+ * Stejný vzor jako `PUBLIC_WEB_QUIZ_HOST`: mimo `BAVICI` (není to sedmý,
+ * resp. desátý bavič v dashboardu), ale plnohodnotný zdroj leadu a osobního
+ * kupónu pod kódem `TYM`. Variantu kvízu si na rozdíl od `WEB` bere z
+ * `quiz_hosts` (řádek zakládá migrace 007), takže jde přepnout bez deploye.
+ */
+export const TEAM_QUIZ_HOST: Bavic = {
+  slug: "tym",
+  kod: "TYM",
+  jmeno: "Longevity tým",
+};
+
+/**
+ * Osobní vstup VIP hosta Víta (Atrey 5. 8. 2026).
+ *
+ * Stejný vzor jako `TEAM_QUIZ_HOST`: mimo `BAVICI` — není bavič fronty a nemá
+ * se objevit v Healing dashboardu ani ve statistikách bavičů — ale má vlastní
+ * kód `VIT`, takže jeho leady i kupóny jdou trackovat zvlášť.
+ */
+export const VIP_QUIZ_HOST: Bavic = {
+  slug: "vit",
+  kod: "VIT",
+  jmeno: "Vít",
+};
+
+/**
+ * Všechny adresy `/kviz/<slug>`, které existují — baviči i samostatné vstupy.
+ * Jediný seznam, ze kterého se generují statické parametry stránky kvízu;
+ * nový host se tak nemůže objevit v `najitBavice` a chybět v routách.
+ */
+export const VSICHNI_HOSTE: Bavic[] = [
+  ...BAVICI,
+  PUBLIC_WEB_QUIZ_HOST,
+  TEAM_QUIZ_HOST,
+  VIP_QUIZ_HOST,
+];
+
+/**
+ * Kódy hostů BEZ předgenerovaných sdílených kupónů — čistě odvozený pohled na
+ * `VSICHNI_HOSTE` (nemůže se rozejít s definicí hostů). Slouží kontrolním
+ * skriptům a dokumentaci; runtime guard v `app/kviz/actions.ts` čte příznak
+ * přímo z baviče.
+ */
+export const KODY_BEZ_SDILENYCH_KUPONU: ReadonlySet<string> = new Set(
+  VSICHNI_HOSTE.filter((h) => !h.maSdileneKupony).map((h) => h.kod),
+);
+
 export function najitBavice(slug: string): Bavic | undefined {
   const hledany = slug.trim().toLowerCase();
-  if (hledany === PUBLIC_WEB_QUIZ_HOST.slug) return PUBLIC_WEB_QUIZ_HOST;
-  return BAVICI.find((b) => b.slug === hledany);
+  return VSICHNI_HOSTE.find((b) => b.slug === hledany);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -240,7 +304,13 @@ export function produktyVKategorii(kategorie: Kategorie): KvizProdukt[] {
 }
 
 /**
- * HEAL21-<bavič>-<produkt>. Kupón s tímto kódem už v e-shopu existuje.
+ * HEAL21-<bavič>-<produkt>.
+ *
+ * U hostů s `maSdileneKupony` (A1–F6) je to kód kupónu, který už v e-shopu
+ * existuje. U ostatních (G7–I9, WEB, TYM) je to POUZE základ osobního kódu —
+ * `app/kviz/actions.ts` k němu přidá náhodný suffix a kupón založí přes
+ * care-api. Sdílený kód se jim nikdy nesmí zobrazit; hlídá to guard nad
+ * `maSdileneKupony`.
  *
  * Bere slugy, ne objekty, a oba si znovu ověří proti katalogu (allowlist) —
  * do kódu kupónu se tak nikdy nepropíše řetězec od uživatele.

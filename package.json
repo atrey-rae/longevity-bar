@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "check": "tsx scripts/check-kviz.ts && tsx scripts/check-kviz-profil.ts && tsx scripts/check-quiz-lead-payload.ts && tsx scripts/check-healing-bridge.ts && tsx scripts/check-mobile-ergonomics.ts && tsx scripts/check-bar-auth.ts && tsx scripts/check-stale-qr-entry.ts && tsx scripts/check-longevity-catalog.ts && tsx scripts/check-homepage-hub.ts && tsx scripts/check-public-web-quiz.ts && tsx scripts/check-quiz-access.ts"
+    "check": "tsx scripts/check-kviz.ts && tsx scripts/check-kviz-profil.ts && tsx scripts/check-quiz-lead-payload.ts && tsx scripts/check-healing-bridge.ts && tsx scripts/check-mobile-ergonomics.ts && tsx scripts/check-bar-auth.ts && tsx scripts/check-stale-qr-entry.ts && tsx scripts/check-longevity-catalog.ts && tsx scripts/check-homepage-hub.ts && tsx scripts/check-public-web-quiz.ts && tsx scripts/check-quiz-access.ts && tsx scripts/check-darek-kredit.ts && tsx scripts/check-referral.ts && tsx scripts/check-no-icloud-duplicates.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

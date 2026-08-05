@@ -10,14 +10,21 @@ export default function QuizVariantSelector({
   bavic,
   recommended,
   completed,
+  referralKod = null,
 }: {
   bavic: Bavic;
   recommended: QuizVariant;
   completed: QuizVariant[];
+  /** Ověřený kód z `?od=` — jen se propíše do formuláře, nikde se nezobrazuje. */
+  referralKod?: string | null;
 }) {
   const [selected, setSelected] = useState<QuizVariant | null>(null);
-  if (selected === "microbiom") return <KvizFlow bavic={bavic} />;
-  if (selected === "profil") return <KvizFlowProfil bavic={bavic} />;
+  if (selected === "microbiom") {
+    return <KvizFlow bavic={bavic} referralKod={referralKod} />;
+  }
+  if (selected === "profil") {
+    return <KvizFlowProfil bavic={bavic} referralKod={referralKod} />;
+  }
 
   const done = new Set(completed);
   return (

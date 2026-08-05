@@ -4,7 +4,6 @@ import {
   ESHOP_URL,
   KUPON_PODMINKY,
   KUPON_PODMINKY_FALLBACK,
-  PUBLIC_WEB_QUIZ_HOST,
   SLEVA_PROCENT,
   kodKuponu,
   type Bavic,
@@ -58,15 +57,33 @@ function chyba(zprava: string): VysledekKuponu {
 }
 
 /**
- * Pozná chybu PostgREST „sloupec neexistuje ve schema cache" pro daný sloupec
- * (kód `PGRST204`, případně jen podle textu hlášky — verze klienta se liší).
+ * Sloupce `quiz_leads`, které smí z insertu vypadnout, když jejich migrace
+ * ještě neproběhla. Pořadí je od nejstarší migrace k nejnovější — bez jména
+ * sloupce v hlášce se nejdřív podezřívá ten poslední přidaný.
+ *
+ *   `quiz_variant`  — migrace 004 (DB default 'microbiom')
+ *   `referral_code` — migrace 008 (DB default NULL)
+ *
+ * Bez téhle pojistky by po nasazení kódu a PŘED spuštěním migrace selhal
+ * ÚPLNĚ KAŽDÝ zápis leadu, i když osobní kupón už mezitím vznikl v e-shopu.
  */
-function jeChybaChybejicihoSloupce(
+const VOLITELNE_SLOUPCE_LEADU = ["quiz_variant", "referral_code"] as const;
+
+/**
+ * Který volitelný sloupec databáze nezná? Pozná chybu PostgREST „sloupec
+ * neexistuje ve schema cache" (kód `PGRST204`, případně jen podle textu
+ * hlášky — verze klienta se liší). `null` = jde o jinou chybu.
+ */
+function chybejiciSloupec(
   chyba: { code?: string; message?: string },
-  sloupec: string,
-): boolean {
-  if (chyba.code === "PGRST204") return true;
-  return (chyba.message ?? "").toLowerCase().includes(sloupec.toLowerCase());
+  kandidati: readonly string[],
+): string | null {
+  if (kandidati.length === 0) return null;
+  const zprava = (chyba.message ?? "").toLowerCase();
+  const podleZpravy = kandidati.find((sloupec) => zprava.includes(sloupec));
+  if (podleZpravy) return podleZpravy;
+  if (chyba.code === "PGRST204") return kandidati[kandidati.length - 1];
+  return null;
 }
 
 export async function odeslatKvizLead(
@@ -76,7 +93,8 @@ export async function odeslatKvizLead(
   /* --- Validace (čistá, testovaná v `lib/kviz-lead.ts`) ------------------- */
   const vstup = parseKvizFormData(formData);
   if (!vstup.ok) return chyba(vstup.zprava);
-  const { bavic, produkt, quizVariant, jmeno, email, telefon } = vstup.data;
+  const { bavic, produkt, quizVariant, jmeno, email, telefon, referralKod } =
+    vstup.data;
 
   // Kód se skládá ze slugů znovu ověřených proti katalogu (allowlist).
   const sdilenyKod = kodKuponu(bavic.slug, produkt.slug);
@@ -138,12 +156,13 @@ export async function odeslatKvizLead(
   const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
   const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
 
-  // Sdílené HEAL21-WEB-* kódy nejsou v e-shopu předgenerované. Veřejný
-  // rozcestník proto při výpadku care-api nesmí ukázat neplatný odvozený kód
-  // ani uložit lead, který žádný funkční kupón nedostal. U šesti bavičů
-  // zůstává dosavadní ověřený fallback beze změny.
-  if (duvodFallbacku && bavic.kod === PUBLIC_WEB_QUIZ_HOST.kod) {
-    console.warn("[kviz] osobní WEB kupón nevznikl:", duvodFallbacku);
+  // Předgenerované sdílené kupóny existují jen pro původních šest bavičů
+  // (A1–F6, `maSdileneKupony`). Pro ostatní hosty — WEB, TYM a nové baviče
+  // G7–I9 (`KODY_BEZ_SDILENYCH_KUPONU`) — by odvozený kód `HEAL21-<KOD>-<SLUG>`
+  // v e-shopu neplatil, takže se při výpadku care-api nesmí ani zobrazit, ani
+  // uložit jako lead. U šestky zůstává dosavadní ověřený fallback beze změny.
+  if (duvodFallbacku && !bavic.maSdileneKupony) {
+    console.warn(`[kviz] osobní ${bavic.kod} kupón nevznikl:`, duvodFallbacku);
     if (claimId) await releaseQuizClaim(claimId);
     return chyba(
       "Osobní kupón se nepodařilo vytvořit. Zkus to prosím za chvíli znovu.",
@@ -167,23 +186,37 @@ export async function odeslatKvizLead(
       email,
       telefon,
       kod,
+      referralKod,
     });
-    let { error: chybaZapisu } = await admin.from("quiz_leads").insert(zaznam);
 
-    // Migrace 004 (sloupec quiz_variant) ještě nemusí být na produkci spuštěná
-    // v okamžiku, kdy se tenhle kód nasadí — bez téhle pojistky by do té doby
-    // selhal ÚPLNĚ KAŽDÝ zápis leadu (obě varianty kvízu), i když osobní kupón
-    // už mezitím vznikl v e-shopu. Zkusíme tedy zápis zopakovat bez nového
-    // sloupce; DB default 'microbiom' se použije místo něj.
-    if (chybaZapisu && jeChybaChybejicihoSloupce(chybaZapisu, "quiz_variant")) {
-      console.warn(
-        "[kviz] sloupec quiz_variant chybí (migrace 004?), zapisuju bez něj:",
-        chybaZapisu.message,
-      );
-      const { quiz_variant: _quizVariant, ...zaznamBezVarianty } = zaznam;
-      ({ error: chybaZapisu } = await admin
+    // Zápis se zkouší dokola a po každém „takový sloupec neznám" se z těla
+    // vyhodí právě jeden volitelný sloupec (viz `VOLITELNE_SLOUPCE_LEADU`).
+    // Kontakt a kupón se tak uloží i na databázi bez migrace 004 nebo 008.
+    let telo: Record<string, unknown> = { ...zaznam };
+    let chybaZapisu: { code?: string; message?: string } | null = null;
+
+    for (let pokus = 0; pokus <= VOLITELNE_SLOUPCE_LEADU.length; pokus += 1) {
+      const { error } = await admin
         .from("quiz_leads")
-        .insert(zaznamBezVarianty));
+        .insert(telo as typeof zaznam);
+      if (!error) {
+        chybaZapisu = null;
+        break;
+      }
+      chybaZapisu = error;
+
+      const chybejici = chybejiciSloupec(
+        error,
+        VOLITELNE_SLOUPCE_LEADU.filter((sloupec) => sloupec in telo),
+      );
+      if (!chybejici) break;
+
+      console.warn(
+        `[kviz] sloupec ${chybejici} chybí (neproběhlá migrace?), zapisuju bez něj:`,
+        error.message,
+      );
+      const { [chybejici]: _vynechany, ...zbytek } = telo;
+      telo = zbytek;
     }
 
     if (chybaZapisu) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
@@ -44,7 +45,14 @@ const POCET_OTAZEK = PROFIL_OTAZKY.length;
  * Odpovědi ani skóre neopouštějí prohlížeč — na server jde jen varianta kvízu,
  * vybraný produkt a kontakt. Vyhodnocení se skládá lokálně z čisté funkce.
  */
-export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
+export default function KvizFlowProfil({
+  bavic,
+  referralKod = null,
+}: {
+  bavic: Bavic;
+  /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
+  referralKod?: string | null;
+}) {
   const [faze, setFaze] = useState<Faze>("uvod");
   const [krok, setKrok] = useState(0);
   const [odpovedi, setOdpovedi] = useState<number[]>([]);
@@ -305,6 +313,9 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
             <input type="hidden" name="quiz_variant" value="profil" />
+            {referralKod && (
+              <input type="hidden" name="od" value={referralKod} />
+            )}
 
             <input
               name="jmeno"
@@ -517,6 +528,11 @@ function Vyhra({ vysledek }: { vysledek: Extract<VysledekKuponu, { stav: "ok" }>
       <a href={ESHOP_URL} className="tlacitko-zapad text-[0.9375rem] tracking-[0.03em]">
         Nakoupit na wildandcoco.com
       </a>
+
+      {/* Viz KvizFlow: po kvízu je host přihlášený, pustíme ho rovnou do appky. */}
+      <Link href="/" className="tlacitko-vedlejsi text-[0.9375rem] tracking-[0.03em]">
+        Pokračovat do Longevity Bar appky →
+      </Link>
 
       <div className="karta space-y-2.5 text-center text-sm leading-relaxed text-kokos-50/90">
         <p>

@@ -228,3 +228,43 @@ export async function isEmailVerified(userId: string): Promise<boolean> {
 export function newEmailToken(): string {
   return randomBytes(32).toString("base64url");
 }
+
+/**
+ * Telefon přihlášeného uživatele v E.164 — identita, pod kterou ho zná
+ * Healing.app (kredit hostů).
+ *
+ * Zdroj pravdy je `phone_identities`: řádek tam vzniká při ověření PINu a je
+ * už normalizovaný. `profiles.phone` je jen záloha — historicky ho vyplňoval
+ * i formulář na kartě, takže se před použitím musí normalizovat a při
+ * neplatném tvaru se zahazuje.
+ *
+ * Jakékoli selhání vrací `null` (fail-closed) — volající pak kredit nenabídne.
+ */
+export async function getSessionPhoneE164(userId: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const identity = await admin
+      .from("phone_identities")
+      .select("phone_e164")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (identity.data?.phone_e164) return identity.data.phone_e164;
+
+    const profile = await admin
+      .from("profiles")
+      .select("phone")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!profile.data?.phone) return null;
+    try {
+      return normalizeCzechPhone(profile.data.phone);
+    } catch {
+      return null;
+    }
+  } catch (e) {
+    console.warn("[kredit] telefon uživatele se nepodařilo načíst:", e);
+    return null;
+  }
+}

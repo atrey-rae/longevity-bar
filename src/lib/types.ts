@@ -15,6 +15,11 @@ export type Profile = {
   /** Reálný kontaktní e-mail. Interní auth alias se sem nikdy nezapisuje. */
   email_verified_at: string | null;
   last_activation_email_at: string | null;
+  /**
+   * Osobní referral kód pro sledovatelné QR v „Dárku přátelům“ (migrace 008).
+   * `null`, dokud ho zákazník nepotřeboval — přiděluje se líně na `/darek`.
+   */
+  referral_code: string | null;
   created_at: string;
 }
 
@@ -117,6 +122,11 @@ export type QuizLead = {
   phone: string;
   /** Ze které varianty kvízu lead vznikl (migrace 004). */
   quiz_variant: QuizVariant;
+  /**
+   * Referral kód zákazníka, jehož osobní QR kamarád načetl (migrace 008).
+   * `null` = kvíz přišel bez `?od=` nebo byl kód neplatný.
+   */
+  referral_code: string | null;
   created_at: string;
 }
 
@@ -234,14 +244,15 @@ export interface Database {
       >;
       quiz_leads: Tabulka<
         QuizLead,
-        // `quiz_variant` je volitelný i tady, přestože je v `QuizLead` povinný:
-        // DB sloupec má default 'microbiom', takže insert bez něj je platný —
-        // nutné pro degradovaný zápis, pokud migrace 004 ještě neproběhla
-        // (viz `app/kviz/actions.ts`).
-        Omit<QuizLead, "id" | "created_at" | "quiz_variant"> & {
+        // `quiz_variant` i `referral_code` jsou volitelné, přestože jsou
+        // v `QuizLead` povinné: v databázi mají default 'microbiom' resp. NULL,
+        // takže insert bez nich je platný — nutné pro degradovaný zápis, pokud
+        // migrace 004 nebo 008 ještě neproběhla (viz `app/kviz/actions.ts`).
+        Omit<QuizLead, "id" | "created_at" | "quiz_variant" | "referral_code"> & {
           id?: string;
           created_at?: string;
           quiz_variant?: QuizVariant;
+          referral_code?: string | null;
         },
         Partial<QuizLead>
       >;

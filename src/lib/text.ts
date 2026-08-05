@@ -35,6 +35,14 @@ export function zakaznici(n: number): string {
 /** Nezlomitelná mezera (U+00A0). */
 const NBSP = "\u00A0";
 
+const KORUNY = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 });
+
+/** 250 Kč — s nezlomitelnou mezerou, ať se částka nikdy nerozpadne přes řádek. */
+export function korun(castka: number): string {
+  const cislo = Number.isFinite(castka) ? castka : 0;
+  return `${KORUNY.format(Math.round(cislo))}${NBSP}Kč`;
+}
+
 export function sazba(text: string): string {
   return text
     .replace(/(\d)\s(%|‰|Kč|ml|kg|g|l|ks)(?![\p{L}])/gu, `$1${NBSP}$2`)

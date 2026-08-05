@@ -33,7 +33,7 @@ export type HealingHostProduct = {
 };
 
 export type HealingHostStats = {
-  /** Kód baviče z kupónu (A1–F6). */
+  /** Kód baviče z kupónu (A1–I9). */
   code: string;
   slug: string;
   name: string;
@@ -212,9 +212,12 @@ function normalizovatVariantu(hodnota: unknown): QuizVariant | null {
 /**
  * Sestaví statistiky pro healing.app.
  *
- * Baviči se vždy berou z `BAVICI` (všech 6, v jejich pořadí) — `quiz_hosts`
+ * Baviči se vždy berou z `BAVICI` (všichni, v jejich pořadí) — `quiz_hosts`
  * jen doplňuje variantu. Chybějící řádek proto nic nerozbije, i když migrace
- * 004 ještě neproběhla.
+ * 004/007 ještě neproběhla.
+ *
+ * Sdílené vstupy (`WEB`, `TYM`) v `BAVICI` nejsou, takže se do statistik
+ * bavičů nemíchají — jejich leady jsou v `quiz_leads` pod vlastním kódem.
  */
 export function buildHealingDashboard(
   input: HealingDashboardInput,
