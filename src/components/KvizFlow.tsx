@@ -7,51 +7,56 @@ import Konfety from "@/components/Konfety";
 import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
-  HOOK,
   KATEGORIE_LABEL,
   OBLIBENY_TEXT,
-  OTAZKA_1,
-  OTAZKA_1_TEXT,
-  OTAZKA_2,
-  OTAZKA_2_TEXT,
-  OTAZKA_3,
-  OTAZKA_3_TEXT,
   PRODUKTY,
   SLEVA_PROCENT,
-  doporucitProdukty,
   type Bavic,
   type Kategorie,
   type KvizProdukt,
   type Moznost,
-  type OdpovedQ1,
-  type OdpovedQ2,
-  type OdpovedQ3,
 } from "@/lib/kviz";
+import {
+  VARIANTY,
+  varianta as najitVariantu,
+  type KvizVarianta,
+  type Odpovedi,
+  type VariantaDef,
+} from "@/lib/kviz-varianty";
 
-type Krok = "uvod" | "q1" | "q2" | "q3" | "vyber" | "formular";
-
-const PREDCHOZI: Record<Exclude<Krok, "uvod">, Krok> = {
-  q1: "uvod",
-  q2: "q1",
-  q3: "q2",
-  vyber: "q3",
-  formular: "vyber",
-};
+type Krok = "uvod" | "otazky" | "vyber" | "formular";
 
 /**
- * Kvíz „Odemkni potenciál svého mikrobiomu“ — tři klepnutí, výběr produktu,
- * kontakt, kupón. Celý stav žije v prohlížeči; server se volá až při odeslání
- * kontaktu.
+ * Kvíz bavičů fronty — přepínač variant, otázky, výběr produktu, kontakt, kupón.
+ *
+ * ⚠️ Odpovědi žijí VÝHRADNĚ tady v prohlížeči. Server action se volá až při
+ * odeslání kontaktu a dostane jen baviče, variantu a slug vybraného produktu —
+ * nikdy odpovědi ani průběžné skóre.
  */
-export default function KvizFlow({ bavic }: { bavic: Bavic }) {
+export default function KvizFlow({
+  bavic,
+  doporucena,
+  hotove,
+  prihlasen,
+}: {
+  bavic: Bavic;
+  /** Předvolená varianta (z QR nebo z politiky) — nic nevynucuje. */
+  doporucena: KvizVarianta;
+  /** Varianty, které přihlášený host už dokončil. */
+  hotove: KvizVarianta[];
+  prihlasen: boolean;
+}) {
+  const [vybrana, setVybrana] = useState<KvizVarianta>(() =>
+    vychoziVarianta(doporucena, hotove),
+  );
   const [krok, setKrok] = useState<Krok>("uvod");
-  const [q1, setQ1] = useState<OdpovedQ1 | null>(null);
-  const [q2, setQ2] = useState<OdpovedQ2 | null>(null);
+  const [index, setIndex] = useState(0);
+  const [odpovedi, setOdpovedi] = useState<Odpovedi>({});
   const [doporucene, setDoporucene] = useState<KvizProdukt[]>([]);
   const [produkt, setProdukt] = useState<KvizProdukt | null>(null);
   // Zkratka „už mám oblíbený produkt“ — přeskočí zbytek otázek na celý katalog.
   const [oblibeny, setOblibeny] = useState(false);
-  const [oblibenyZ, setOblibenyZ] = useState<Krok>("q1");
+  const [oblibenyZ, setOblibenyZ] = useState(0);
 
   const [jmeno, setJmeno] = useState("");
   const [email, setEmail] = useState("");
@@ -62,58 +67,89 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
     null,
   );
 
-  function odpovedetQ3(hodnota: OdpovedQ3) {
-    // Sem se dá dostat jen přes q1 a q2, přesto raději pojistka.
-    if (!q1 || !q2) return setKrok("q1");
+  const varianta = najitVariantu(vybrana);
+  const otazky = varianta.otazky;
+  const zbyva = VARIANTY.filter((v) => !hotove.includes(v.id));
+
+  function odpovedet(hodnota: string) {
+    const dalsi = { ...odpovedi, [otazky[index].id]: hodnota };
+    setOdpovedi(dalsi);
     setOblibeny(false);
-    setDoporucene(doporucitProdukty(q1, q2, hodnota));
+    if (index + 1 < otazky.length) return setIndex(index + 1);
+    setDoporucene(varianta.doporucit(dalsi));
     setKrok("vyber");
   }
 
   function vybratOblibeny() {
-    setOblibenyZ(krok);
+    setOblibenyZ(index);
     setOblibeny(true);
     setDoporucene(PRODUKTY);
     setKrok("vyber");
   }
 
-  function zpet() {
-    // Ze zkratky se vracíme na otázku, ze které člověk odbočil.
-    if (krok === "vyber" && oblibeny) {
-      setOblibeny(false);
-      return setKrok(oblibenyZ);
-    }
-    setKrok(PREDCHOZI[krok as Exclude<Krok, "uvod">]);
+  function prepnoutVariantu(id: KvizVarianta) {
+    setVybrana(id);
+    // Otázky se mezi variantami překrývají jen zčásti — začínáme načisto.
+    setIndex(0);
+    setOdpovedi({});
+    setOblibeny(false);
   }
 
-  if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} />;
+  function zpet() {
+    if (krok === "formular") return setKrok("vyber");
+    if (krok === "vyber") {
+      // Ze zkratky se vracíme na otázku, ze které člověk odbočil.
+      if (oblibeny) {
+        setOblibeny(false);
+        setIndex(oblibenyZ);
+      } else {
+        setIndex(otazky.length - 1);
+      }
+      return setKrok("otazky");
+    }
+    if (index > 0) return setIndex(index - 1);
+    setKrok("uvod");
+  }
+
+  if (vysledek?.stav === "ok") {
+    return <Vyhra vysledek={vysledek} bavic={bavic} />;
+  }
+
+  // Přihlášený host, který má obě varianty za sebou — kupón už dostal.
+  if (prihlasen && zbyva.length === 0) return <Hotovo />;
 
   return (
     <div className="space-y-5">
-      {krok !== "uvod" && <Hlavicka krok={krok} zpet={zpet} />}
+      {krok !== "uvod" && (
+        <Hlavicka
+          cislo={krok === "otazky" ? index + 1 : null}
+          celkem={otazky.length}
+          zpet={zpet}
+        />
+      )}
 
       {krok === "uvod" && (
         <section className="flex min-h-[62vh] flex-col justify-center space-y-6 text-center">
           <div className="relative mx-auto grid h-32 w-32 place-items-center">
             <span className="zare absolute inset-0 rounded-full" aria-hidden />
             <span className="animate-plovouci relative text-7xl" aria-hidden>
-              🦠
+              {varianta.emoji}
             </span>
           </div>
           <div>
             <h1 className="text-stin">
-              Odemkni potenciál
+              {varianta.titulek[0]}
               <br />
-              <span className="text-mango-400">svého mikrobiomu!</span>
+              <span className="text-mango-400">{varianta.titulek[1]}</span>
             </h1>
             <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
-              {sazba(HOOK)}
+              {sazba(varianta.hook)}
             </p>
           </div>
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => setKrok("q1")}
+              onClick={() => setKrok("otazky")}
               className="tlacitko-hlavni"
             >
               Odemknout →
@@ -124,40 +160,28 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
               z Longevity Baru.
             </p>
           </div>
+
+          <PrepinacVariant
+            vybrana={vybrana}
+            hotove={hotove}
+            doporucena={doporucena}
+            prepnout={prepnoutVariantu}
+          />
         </section>
       )}
 
-      {krok === "q1" && (
-        <Otazka text={OTAZKA_1_TEXT}>
+      {krok === "otazky" && (
+        <section className="space-y-4">
+          <h1 className="text-stin">{otazky[index].text}</h1>
           <Volby
-            moznosti={OTAZKA_1}
-            vybrat={(h) => {
-              setQ1(h);
-              setKrok("q2");
-            }}
+            /* Klíč přemountuje seznam — jinak by tlačítka mezi otázkami
+               držela stav hoveru z předchozího klepnutí. */
+            key={`${vybrana}-${otazky[index].id}`}
+            moznosti={otazky[index].moznosti}
+            vybrat={odpovedet}
           />
           <OblibenaZkratka vybrat={vybratOblibeny} />
-        </Otazka>
-      )}
-
-      {krok === "q2" && (
-        <Otazka text={OTAZKA_2_TEXT}>
-          <Volby
-            moznosti={OTAZKA_2}
-            vybrat={(h) => {
-              setQ2(h);
-              setKrok("q3");
-            }}
-          />
-          <OblibenaZkratka vybrat={vybratOblibeny} />
-        </Otazka>
-      )}
-
-      {krok === "q3" && (
-        <Otazka text={OTAZKA_3_TEXT}>
-          <Volby moznosti={OTAZKA_3} vybrat={odpovedetQ3} />
-          <OblibenaZkratka vybrat={vybratOblibeny} />
-        </Otazka>
+        </section>
       )}
 
       {krok === "vyber" && (
@@ -168,7 +192,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
             <div className="relative mx-auto grid h-16 w-16 place-items-center">
               <span className="zare absolute inset-0 rounded-full" aria-hidden />
               <span className="relative text-4xl leading-none" aria-hidden>
-                {oblibeny ? "💛" : "🦠"}
+                {oblibeny ? "💛" : varianta.emoji}
               </span>
             </div>
             <h1 className="text-stin">
@@ -256,6 +280,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
           <form action={akce} className="karta space-y-2.5">
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
+            <input type="hidden" name="varianta" value={vybrana} />
 
             <input
               name="jmeno"
@@ -296,7 +321,7 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
               disabled={ceka}
               className="tlacitko-hlavni mt-1 disabled:opacity-70"
             >
-              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
+              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
             </button>
 
             {vysledek?.stav === "chyba" && (
@@ -321,10 +346,132 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Dílčí kousky                                                                */
+/* Varianty                                                                    */
 /* -------------------------------------------------------------------------- */
 
-const CISLO_OTAZKY: Partial<Record<Krok, number>> = { q1: 1, q2: 2, q3: 3 };
+/**
+ * Předvolba přepínače: doporučená varianta, a pokud ji host už má hotovou,
+ * tak ta druhá. Doporučení tím zůstává doporučením — nikdy nikoho neblokuje.
+ */
+function vychoziVarianta(
+  doporucena: KvizVarianta,
+  hotove: KvizVarianta[],
+): KvizVarianta {
+  if (!hotove.includes(doporucena)) return doporucena;
+  return VARIANTY.find((v) => !hotove.includes(v.id))?.id ?? doporucena;
+}
+
+/**
+ * Přepínač obou variant na úvodní obrazovce. Doporučená je předvolená
+ * a označená, dokončená je vidět taky — jen se do ní už nedá vstoupit.
+ */
+function PrepinacVariant({
+  vybrana,
+  hotove,
+  doporucena,
+  prepnout,
+}: {
+  vybrana: KvizVarianta;
+  hotove: KvizVarianta[];
+  doporucena: KvizVarianta;
+  prepnout: (id: KvizVarianta) => void;
+}) {
+  return (
+    <div className="space-y-2.5 pt-1">
+      <p className="stitek-sekce text-center">Vyber si kvíz</p>
+      <div className="grid gap-2.5">
+        {VARIANTY.map((v) => (
+          <KartaVarianty
+            key={v.id}
+            varianta={v}
+            aktivni={v.id === vybrana}
+            hotova={hotove.includes(v.id)}
+            doporucena={v.id === doporucena}
+            prepnout={prepnout}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KartaVarianty({
+  varianta,
+  aktivni,
+  hotova,
+  doporucena,
+  prepnout,
+}: {
+  varianta: VariantaDef;
+  aktivni: boolean;
+  hotova: boolean;
+  doporucena: boolean;
+  prepnout: (id: KvizVarianta) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => prepnout(varianta.id)}
+      disabled={hotova}
+      aria-pressed={aktivni}
+      className={[
+        "flex min-h-[3.5rem] w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition",
+        hotova
+          ? "cursor-not-allowed border-white/15 bg-white/5 opacity-60"
+          : aktivni
+            ? "border-mango-400 bg-mango-400/15"
+            : "border-white/20 bg-white/5 hover:bg-white/10",
+      ].join(" ")}
+    >
+      <span className="text-2xl leading-none" aria-hidden>
+        {varianta.emoji}
+      </span>
+      <span className="flex-1 leading-tight">
+        <span className="block text-[0.9375rem] font-extrabold">
+          {varianta.nazev}
+        </span>
+        <span className="block text-xs text-kokos-50/70">{varianta.popis}</span>
+      </span>
+      {hotova ? (
+        <span className="odznak bg-white/10 text-[0.65rem] text-kokos-50/80">
+          Hotovo ✓
+        </span>
+      ) : doporucena ? (
+        <span className="odznak bg-mango-400/15 text-[0.65rem] text-mango-400">
+          Doporučeno
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/** Obě varianty hotové — host už kupón má, druhý mu nedáme. */
+function Hotovo() {
+  return (
+    <section className="flex min-h-[62vh] flex-col justify-center space-y-5 text-center">
+      <div className="relative mx-auto grid h-28 w-28 place-items-center">
+        <span className="zare absolute inset-0 rounded-full" aria-hidden />
+        <span className="animate-plovouci relative text-7xl" aria-hidden>
+          💛
+        </span>
+      </div>
+      <div>
+        <h1 className="text-stin">Máš hotovo!</h1>
+        <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
+          Oba kvízy už jsi prošel/prošla a kupóny ti dorazily e-mailem —
+          mrkni i do spamu.
+        </p>
+      </div>
+      <a href={ESHOP_URL} className="tlacitko-zapad text-[0.9375rem]">
+        Nakoupit na wildandcoco.com
+      </a>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dílčí kousky                                                                */
+/* -------------------------------------------------------------------------- */
 
 /** Pořadí sekcí v katalogu — kopíruje pořadí skupin v `PRODUKTY`. */
 const PORADI_KATEGORII: Kategorie[] = [
@@ -390,8 +537,16 @@ function MrizkaProduktu({
   );
 }
 
-function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
-  const cislo = CISLO_OTAZKY[krok];
+function Hlavicka({
+  cislo,
+  celkem,
+  zpet,
+}: {
+  /** Pořadí otázky (1-based), nebo null mimo otázky. */
+  cislo: number | null;
+  celkem: number;
+  zpet: () => void;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
       <button
@@ -405,19 +560,9 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
       {cislo ? (
         <span className="flex items-center gap-2.5">
           <span className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-kokos-50/60">
-            Otázka {cislo} ze 3
+            Otázka {cislo} z {celkem}
           </span>
-          <span className="flex gap-1" aria-hidden>
-            {[1, 2, 3].map((i) => (
-              <span
-                key={i}
-                className={[
-                  "h-1.5 rounded-full transition-all",
-                  i <= cislo ? "w-5 bg-mango-400" : "w-3 bg-white/25",
-                ].join(" ")}
-              />
-            ))}
-          </span>
+          <Postup cislo={cislo} celkem={celkem} />
         </span>
       ) : (
         <span className="odznak bg-mango-400/15 text-[0.7rem] tracking-[0.16em] text-mango-400">
@@ -428,18 +573,33 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
   );
 }
 
-function Otazka({
-  text,
-  children,
-}: {
-  text: string;
-  children: React.ReactNode;
-}) {
+/**
+ * Ukazatel postupu. Do pěti otázek tečky (jako dřív), u devítiotázkové
+ * varianty jeden pruh — devět teček by se vedle popisku nevešlo.
+ */
+function Postup({ cislo, celkem }: { cislo: number; celkem: number }) {
+  if (celkem > 5) {
+    return (
+      <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-white/25" aria-hidden>
+        <span
+          className="block h-full rounded-full bg-mango-400 transition-all"
+          style={{ width: `${(cislo / celkem) * 100}%` }}
+        />
+      </span>
+    );
+  }
   return (
-    <section className="space-y-4">
-      <h1 className="text-stin">{text}</h1>
-      {children}
-    </section>
+    <span className="flex gap-1" aria-hidden>
+      {Array.from({ length: celkem }, (_, i) => i + 1).map((i) => (
+        <span
+          key={i}
+          className={[
+            "h-1.5 rounded-full transition-all",
+            i <= cislo ? "w-5 bg-mango-400" : "w-3 bg-white/25",
+          ].join(" ")}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -467,12 +627,12 @@ function OblibenaZkratka({ vybrat }: { vybrat: () => void }) {
   );
 }
 
-function Volby<T extends string>({
+function Volby({
   moznosti,
   vybrat,
 }: {
-  moznosti: Moznost<T>[];
-  vybrat: (hodnota: T) => void;
+  moznosti: Moznost<string>[];
+  vybrat: (hodnota: string) => void;
 }) {
   return (
     <div className="space-y-2.5">
@@ -498,9 +658,13 @@ function Volby<T extends string>({
 
 function Vyhra({
   vysledek,
+  bavic,
 }: {
   vysledek: Extract<VysledekKuponu, { stav: "ok" }>;
+  bavic: Bavic;
 }) {
+  const zbyva = VARIANTY.find((v) => v.id !== vysledek.varianta);
+
   return (
     <div className="space-y-5">
       <Konfety kusu={70} />
@@ -560,6 +724,17 @@ function Vyhra({
           {sazba(vysledek.podminky)}
         </p>
       </div>
+
+      {/* Druhá varianta zůstává k dispozici — plný reload, ať se načte
+          čerstvý seznam dokončených variant ze serveru. */}
+      {zbyva && (
+        <a
+          href={`/kviz/${bavic.slug}?varianta=${zbyva.id}`}
+          className="block rounded-2xl border-2 border-dashed border-white/25 px-4 py-3 text-center text-sm font-bold text-kokos-50/85 transition hover:bg-white/10"
+        >
+          {zbyva.emoji} Máš ještě druhý kvíz — {zbyva.nazev} ({zbyva.popis})
+        </a>
+      )}
     </div>
   );
 }
