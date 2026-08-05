@@ -26,6 +26,25 @@ Next.js 15 (App Router) + Tailwind v4 + Supabase. Dvě funkce:
   clean, vše pushnuté.
 - Gitleaks: no leaks (allowlist `.gitleaks.toml` pro dummy `.env.example`).
 
+## Převzetí orchestrace cockpitem ChatGPT/Codex
+
+- **4. 8. 2026:** Codex načetl celý Task Pack a potvrdil roli jediného
+  aktivního orchestrátora podle `HANDOFF.md`; Claude zůstává exekutivní
+  read-only/review vrstvou, dokud Atrey nerozhodne jinak.
+- Projektový Task Pack vznikl pod P&COS handoffem v2.0.1; převzetí bylo
+  provedeno proti aktuálnímu kanonickému release
+  `PCOS-HANDOFF-2026-08-04-v2.0.2`. Pro tento read-only takeover nebyl
+  nalezen konflikt; před další write/produkční akcí se řídíme v2.0.2.
+- Lokální `HEAD`, výchozí větev i vzdálená větev byly při převzetí shodně
+  na `0e94f479028fd7565dfba7bcf464d64858b81f7f`; working tree byl čistý.
+- Read-only smoke test potvrdil HTTP 200 pro `/`, `/kviz/d4`, `/pravidla`
+  i hlavní `https://peaceandcoco.com/`; schválený mikrobiom framing a GDPR
+  text byly v produkčním HTML přítomné.
+- Nový lokální běh TypeScript/kvíz gate se při převzetí nedokončil kvůli
+  blokovanému I/O lokálního filesystemu a byl bezpečně ukončen; nejde tedy
+  o nový zelený ani červený důkaz. Platí poslední dokončené testy z
+  `EVIDENCE.md`, dokud gate nebude zopakován před případnou změnou/deployem.
+
 ## Infrastruktura a secrets (jen umístění, nikdy hodnoty)
 
 | Co | Kde |

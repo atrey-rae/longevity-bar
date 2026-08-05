@@ -53,3 +53,16 @@ jinak. Poslední sekce se doplňuje při každém dalším release.
 | 4. 8. ~07:30 | mikrobiom framing + GDPR | 303673e | live intro + /pravidla |
 | 4. 8. ~09:45 | W&C design pass (mobil ~6,0→~8,9, a11y AA, texty beze změny) | 07f8d79 | tsc EXIT 0 · check-kviz 80/80 · live mobil screenshoty úvod+Q2 · /dev-vyhra smazána |
 | 4. 8. ~09:50 | handoff dokumentace (Task Pack, RUNBOOK, README §9) | 5bcf32c | gitleaks no leaks · cold-start soubory kompletní |
+
+## Codex takeover read-back (4. 8. 2026)
+
+- Git fetch/read-back: lokální `HEAD` = vzdálená výchozí větev =
+  `0e94f479028fd7565dfba7bcf464d64858b81f7f`; před dokumentačním zápisem
+  byl working tree čistý.
+- Read-only HTTP smoke test: `https://bar.peaceandcoco.com/` 200,
+  `/kviz/d4` 200, `/pravidla` 200, `https://peaceandcoco.com/` 200.
+- Produkční HTML kvízu obsahovalo „Odemkni potenciál svého mikrobiomu“;
+  `/pravidla` obsahovala telefon, 6 měsíců a 6 přátelských zpráv.
+- Pokus o nový lokální gate a nezávislý Claude code scan byl bezpečně
+  ukončen po dlouhém čekání na I/O. Výsledek se **nezapočítává** jako test;
+  před dalším deployem zůstává povinné znovu spustit oba gate příkazy.
