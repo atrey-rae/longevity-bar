@@ -3,12 +3,12 @@
 import { useActionState, useState } from "react";
 
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
+import KatalogVyber from "@/components/KatalogVyber";
 import Konfety from "@/components/Konfety";
 import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
   HOOK,
-  KATEGORIE_LABEL,
   OBLIBENY_TEXT,
   OTAZKA_1,
   OTAZKA_1_TEXT,
@@ -20,7 +20,6 @@ import {
   SLEVA_PROCENT,
   doporucitProdukty,
   type Bavic,
-  type Kategorie,
   type KvizProdukt,
   type Moznost,
   type OdpovedQ1,
@@ -194,23 +193,13 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
 
           {oblibeny ? (
             /* Celý katalog (66 položek) — bez členění je to nekonečná zeď dlaždic. */
-            <div className="space-y-5">
-              {seskupitPodleKategorie(doporucene).map((skupina) => (
-                <div key={skupina.kategorie} className="space-y-2.5">
-                  <p className="stitek-sekce">
-                    {KATEGORIE_LABEL[skupina.kategorie]}
-                  </p>
-                  <MrizkaProduktu
-                    kompaktni
-                    produkty={skupina.polozky}
-                    vybrat={(p) => {
-                      setProdukt(p);
-                      setKrok("formular");
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            <KatalogVyber
+              produkty={doporucene}
+              vybrat={(p) => {
+                setProdukt(p);
+                setKrok("formular");
+              }}
+            />
           ) : (
             <MrizkaProduktu
               produkty={doporucene}
@@ -327,40 +316,13 @@ export default function KvizFlow({ bavic }: { bavic: Bavic }) {
 
 const CISLO_OTAZKY: Partial<Record<Krok, number>> = { q1: 1, q2: 2, q3: 3 };
 
-/** Pořadí sekcí v katalogu — kopíruje pořadí skupin v `PRODUKTY`. */
-const PORADI_KATEGORII: Kategorie[] = [
-  "streva",
-  "piti",
-  "energie",
-  "suplementy",
-  "sladke",
-  "slane",
-  "vareni",
-];
-
-/**
- * Rozdělí katalog do sekcí podle PRVNÍ kategorie produktu — čistě zobrazovací
- * pomůcka, aby 66 dlaždic nebylo jedna nekonečná zeď. Doporučovací logika
- * v `lib/kviz.ts` se tím nemění.
- */
-function seskupitPodleKategorie(
-  produkty: KvizProdukt[],
-): { kategorie: Kategorie; polozky: KvizProdukt[] }[] {
-  return PORADI_KATEGORII.map((kategorie) => ({
-    kategorie,
-    polozky: produkty.filter((p) => p.kategorie[0] === kategorie),
-  })).filter((s) => s.polozky.length > 0);
-}
-
+/** Doporučená osmička — větší dlaždice než sdílený `KatalogVyber`. */
 function MrizkaProduktu({
   produkty,
   vybrat,
-  kompaktni = false,
 }: {
   produkty: KvizProdukt[];
   vybrat: (produkt: KvizProdukt) => void;
-  /** Celý katalog jede v hustší mřížce, doporučených 8 dostane víc prostoru. */
-  kompaktni?: boolean;
 }) {
   return (
     <div className="grid grid-cols-2 gap-2.5">
@@ -369,20 +331,12 @@ function MrizkaProduktu({
           key={p.slug}
           type="button"
           onClick={() => vybrat(p)}
-          className={kompaktni ? "dlazdice-mala" : "dlazdice"}
+          className="dlazdice"
         >
-          <span
-            className={kompaktni ? "text-2xl leading-none" : "text-[2rem] leading-none"}
-            aria-hidden
-          >
+          <span className="text-[2rem] leading-none" aria-hidden>
             {p.emoji}
           </span>
-          <span
-            className={[
-              "font-extrabold leading-[1.25] text-balance",
-              kompaktni ? "text-[0.75rem]" : "text-[0.8125rem]",
-            ].join(" ")}
-          >
+          <span className="text-[0.8125rem] font-extrabold leading-[1.25] text-balance">
             {p.nazev}
           </span>
         </button>

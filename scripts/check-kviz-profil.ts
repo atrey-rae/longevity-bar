@@ -1,5 +1,5 @@
 /**
- * Kontrola vážené matice kvízu varianty „profil“.
+ * Kontrola vážené matice kvízu varianty „profil“ a jejího vyhodnocení.
  *
  * Projde VŠECHNY kombinace odpovědí (3·3·4·3·3·4·3·2·2 = 15 552) a ověří, že
  * výsledek je použitelný na obrazovce i v kupónu:
@@ -10,15 +10,48 @@
  *   5. jediný vítěz vrací přesně prvních osm kandidátů svého profilu,
  *   6. remíza vybírá deterministicky round-robin, aby pozdější vítězové nebyli
  *      vyhladověni produkty prvního profilu,
- *   7. funkce je deterministická (dva běhy stejného vstupu = stejný výsledek).
+ *   7. funkce je deterministická (dva běhy stejného vstupu = stejný výsledek),
+ *   8. obrazovka „Longevity profil“ má personu, 2–4 osobní postřehy a neprázdné
+ *      zdůvodnění nabídky,
+ *   9. žádný text vyhodnocení nepoužívá zdravotní tvrzení (allowlist zakázaných
+ *      slov níž) — právní rámec z briefu 5. 8. 2026.
  *
  * Spuštění: `npx tsx scripts/check-kviz-profil.ts`
  */
 import { PRODUKTY } from "../src/lib/kviz";
 import { PROFIL_OTAZKY, PROFILY, vyhodnotitProfil } from "../src/lib/kviz-profil";
+import {
+  PERSONY,
+  VYHODNOCENI_TEXTY,
+  sestavitPostrehy,
+  sestavitVyhodnoceni,
+} from "../src/lib/kviz-profil-vyhodnoceni";
 
 const MIN = 1;
 const MAX = 8;
+const MIN_POSTREHU = 2;
+const MAX_POSTREHU = 4;
+
+/**
+ * Zdravotní tvrzení, která se do textů kvízu nesmí dostat. Porovnává se na
+ * malých písmenech a na kmeni slova, takže „Alergie“ i „alergickou“ spadnou
+ * na stejné pravidlo. Slovo „probiotik“ je tu záměrně: v nových textech píšeme
+ * „fermentované“, „kultury“ a „mikrobiom“.
+ */
+const ZAKAZANA_SLOVA = [
+  "léčí",
+  "vyléčí",
+  "nemoc",
+  "diagnóz",
+  "alergi",
+  "intoleranc",
+  "probiotik",
+];
+
+function zakazanaSlovaV(texty: string[]): string[] {
+  const spojene = texty.join("  ").toLowerCase();
+  return ZAKAZANA_SLOVA.filter((slovo) => spojene.includes(slovo));
+}
 
 const SLUGY_V_KATALOGU = new Set(PRODUKTY.map((p) => p.slug));
 const ZNAMA_ID = new Set(PROFILY.map((p) => p.id));
@@ -54,6 +87,43 @@ for (const profil of PROFILY) {
   }
 }
 
+/* --- Persona vrstva: každý profil P1–P10 musí mít archetyp ----------------- */
+for (const profil of PROFILY) {
+  const persona = PERSONY.find((p) => p.profilId === profil.id);
+  if (!persona) {
+    throw new Error(`Chybí persona pro profil ${profil.id}`);
+  }
+  for (const [pole, hodnota] of Object.entries({
+    persona: persona.persona,
+    esence: persona.esence,
+    pribeh: persona.pribeh,
+    procProdukty: persona.procProdukty,
+  })) {
+    if (hodnota.trim().length === 0) {
+      throw new Error(`${profil.id}: prázdné pole „${pole}" persony`);
+    }
+  }
+}
+if (PERSONY.length !== PROFILY.length) {
+  throw new Error(`person je ${PERSONY.length}, profilů ${PROFILY.length}`);
+}
+const jmenaPerson = new Set(PERSONY.map((p) => p.persona));
+if (jmenaPerson.size !== PERSONY.length) {
+  throw new Error("dvě persony sdílí stejné jméno archetypu");
+}
+
+/* --- Statické texty modulu nesmí obsahovat zdravotní tvrzení --------------- */
+const staticke = [
+  ...Object.values(VYHODNOCENI_TEXTY),
+  ...PERSONY.flatMap((p) => [p.persona, p.esence, p.pribeh, p.procProdukty]),
+];
+const zakazanaVeStatickych = zakazanaSlovaV(staticke);
+if (zakazanaVeStatickych.length > 0) {
+  throw new Error(
+    `statické texty vyhodnocení obsahují zakázaná slova: ${zakazanaVeStatickych.join(", ")}`,
+  );
+}
+
 /** Nezávislý round-robin přepočet vítězných profilů (P1→P10, do stropu). */
 function ocekavaneProdukty(profilId: string[]): string[] {
   const vitezove = PROFILY.filter((profil) => profilId.includes(profil.id));
@@ -86,6 +156,8 @@ let kombinaci = 0;
 let remiz = 0;
 let maxProduktu = 0;
 let maxRemizy = 0;
+let minPostrehu = Number.POSITIVE_INFINITY;
+let maxPostrehu = 0;
 
 const vybrane: number[] = [];
 
@@ -137,6 +209,57 @@ function projdi(q: number): void {
       }
     }
     maxProduktu = Math.max(maxProduktu, slugy.length);
+
+    /* --- Obrazovka „Longevity profil“ ------------------------------------- */
+    const hodnoceni = sestavitVyhodnoceni(vybrane);
+    if (!hodnoceni) {
+      chyby.push(`${kde}: vyhodnocení nevzniklo`);
+      return;
+    }
+
+    if (hodnoceni.personaNadpis.trim().length === 0) {
+      chyby.push(`${kde}: prázdná persona v nadpisu`);
+    }
+    if (hodnoceni.persony.length !== vysledek.profilId.length) {
+      chyby.push(
+        `${kde}: person ${hodnoceni.persony.length}, vítězných profilů ${vysledek.profilId.length}`,
+      );
+    }
+    for (const prazdne of ["uvod", "pribeh", "procProdukty"] as const) {
+      if (hodnoceni[prazdne].trim().length === 0) {
+        chyby.push(`${kde}: prázdné pole „${prazdne}"`);
+      }
+    }
+
+    if (
+      hodnoceni.postrehy.length < MIN_POSTREHU ||
+      hodnoceni.postrehy.length > MAX_POSTREHU
+    ) {
+      chyby.push(
+        `${kde}: ${hodnoceni.postrehy.length} postřehů, čekáme ${MIN_POSTREHU}–${MAX_POSTREHU}`,
+      );
+    }
+    for (const postreh of hodnoceni.postrehy) {
+      if (postreh.emoji.trim().length === 0 || postreh.text.trim().length === 0) {
+        chyby.push(`${kde}: postřeh bez emoji nebo bez textu`);
+      }
+    }
+    if (new Set(hodnoceni.postrehy.map((p) => p.text)).size !== hodnoceni.postrehy.length) {
+      chyby.push(`${kde}: dva stejné postřehy`);
+    }
+    minPostrehu = Math.min(minPostrehu, hodnoceni.postrehy.length);
+    maxPostrehu = Math.max(maxPostrehu, hodnoceni.postrehy.length);
+
+    const zakazana = zakazanaSlovaV([
+      hodnoceni.personaNadpis,
+      hodnoceni.uvod,
+      hodnoceni.pribeh,
+      hodnoceni.procProdukty,
+      ...hodnoceni.postrehy.map((p) => p.text),
+    ]);
+    if (zakazana.length > 0) {
+      chyby.push(`${kde}: zdravotní tvrzení v textu — ${zakazana.join(", ")}`);
+    }
     return;
   }
 
@@ -156,12 +279,21 @@ const b = vyhodnotitProfil(vzorek);
 if (JSON.stringify(a) !== JSON.stringify(b)) {
   chyby.push(`determinismus: dva běhy [${vzorek.join(",")}] daly jiný výsledek`);
 }
+if (JSON.stringify(sestavitVyhodnoceni(vzorek)) !== JSON.stringify(sestavitVyhodnoceni(vzorek))) {
+  chyby.push(`determinismus: dvě vyhodnocení [${vzorek.join(",")}] se liší`);
+}
 
 /* --- Neplatný vstup nesmí hodit výjimku ------------------------------------ */
 for (const spatny of [[], [0], new Array(9).fill(99), [0, 0, 0, 0, 0, 0, 0, 0, -1]]) {
   const r = vyhodnotitProfil(spatny as number[]);
   if (r.profilId.length !== 0 || r.produkty.length !== 0) {
     chyby.push(`neplatný vstup [${(spatny as number[]).join(",")}] nevrátil prázdný výsledek`);
+  }
+  if (sestavitVyhodnoceni(spatny as number[]) !== null) {
+    chyby.push(`neplatný vstup [${(spatny as number[]).join(",")}] vrátil vyhodnocení`);
+  }
+  if (sestavitPostrehy(spatny as number[]).length !== 0) {
+    chyby.push(`neplatný vstup [${(spatny as number[]).join(",")}] vrátil postřehy`);
   }
 }
 
@@ -175,5 +307,7 @@ if (chyby.length > 0) {
 console.log(
   `✓ check-kviz-profil: ${kombinaci}/${kombinaci} kombinací OK ` +
     `(${MIN}–${MAX} produktů, unikátní, z katalogu, profily P1–P10) · ` +
-    `remíz ${remiz} (nejvíc ${maxRemizy} profilů) · max produktů ${maxProduktu} · determinismus OK`,
+    `remíz ${remiz} (nejvíc ${maxRemizy} profilů) · max produktů ${maxProduktu} · determinismus OK · ` +
+    `vyhodnocení: ${PERSONY.length}/${PROFILY.length} person, postřehů ${minPostrehu}–${maxPostrehu}, ` +
+    `bez zdravotních tvrzení (${ZAKAZANA_SLOVA.length} hlídaných slov)`,
 );

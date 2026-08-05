@@ -3,9 +3,16 @@
 import { useActionState, useState } from "react";
 
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
+import KatalogVyber from "@/components/KatalogVyber";
 import Konfety from "@/components/Konfety";
 import { sazba } from "@/lib/text";
-import { ESHOP_URL, SLEVA_PROCENT, type Bavic, type KvizProdukt } from "@/lib/kviz";
+import {
+  ESHOP_URL,
+  PRODUKTY,
+  SLEVA_PROCENT,
+  type Bavic,
+  type KvizProdukt,
+} from "@/lib/kviz";
 import {
   PROFIL_DISCLAIMER,
   PROFIL_HOOK,
@@ -14,21 +21,28 @@ import {
   vyhodnotitProfil,
   type ProfilMoznost,
 } from "@/lib/kviz-profil";
+import {
+  VYHODNOCENI_TEXTY,
+  sestavitVyhodnoceni,
+  type Postreh,
+  type Vyhodnoceni,
+} from "@/lib/kviz-profil-vyhodnoceni";
 
-type Faze = "uvod" | "otazky" | "vyber" | "formular";
+type Faze = "uvod" | "otazky" | "vyhodnoceni" | "vyber" | "formular";
 
 const POCET_OTAZEK = PROFIL_OTAZKY.length;
 
 /**
- * Kvíz varianty „profil“ — devět otázek, vážená matice, výběr jednoho produktu,
- * kontakt, kupón.
+ * Kvíz varianty „profil“ — devět otázek, vážená matice, obrazovka vyhodnocení
+ * „Longevity profil“, teprve pak výběr jednoho produktu, kontakt a kupón.
  *
  * Záměrně samostatná komponenta, ne parametrizovaný `KvizFlow`: tříotázková
  * varianta jede na festivalu naostro a nesmí se tímhle rozbít. Duplikace
- * dílčích kousků je tady levnější než regrese.
+ * dílčích kousků je tady levnější než regrese. Sdílený je jen výběr z celého
+ * sortimentu (`KatalogVyber`), kde by se 66 dlaždic opisovalo zbytečně.
  *
  * Odpovědi ani skóre neopouštějí prohlížeč — na server jde jen varianta kvízu,
- * vybraný produkt a kontakt.
+ * vybraný produkt a kontakt. Vyhodnocení se skládá lokálně z čisté funkce.
  */
 export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
   const [faze, setFaze] = useState<Faze>("uvod");
@@ -36,7 +50,11 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
   const [odpovedi, setOdpovedi] = useState<number[]>([]);
   const [doporucene, setDoporucene] = useState<KvizProdukt[]>([]);
   const [profily, setProfily] = useState<string[]>([]);
+  const [vyhodnoceni, setVyhodnoceni] = useState<Vyhodnoceni | null>(null);
   const [produkt, setProdukt] = useState<KvizProdukt | null>(null);
+  // Rozbalený sortiment zůstává otevřený i po návratu z formuláře — kdo si ho
+  // jednou vyžádal, nechce ho hledat znovu.
+  const [celyKatalog, setCelyKatalog] = useState(false);
 
   const [jmeno, setJmeno] = useState("");
   const [email, setEmail] = useState("");
@@ -56,22 +74,25 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
       return;
     }
 
-    const vyhodnoceni = vyhodnotitProfil(dalsi);
+    const vysledek = vyhodnotitProfil(dalsi);
+    const text = sestavitVyhodnoceni(dalsi);
     // Prázdný výsledek by znamenal chybu v matici — radši zpět na první otázku
-    // než výsledková obrazovka bez produktů.
-    if (vyhodnoceni.produkty.length === 0) {
+    // než výsledková obrazovka bez produktů nebo bez textu.
+    if (vysledek.produkty.length === 0 || !text) {
       setOdpovedi([]);
       setKrok(0);
       return;
     }
-    setProfily(vyhodnoceni.profilId);
-    setDoporucene(vyhodnoceni.produkty);
-    setFaze("vyber");
+    setProfily(vysledek.profilId);
+    setDoporucene(vysledek.produkty);
+    setVyhodnoceni(text);
+    setFaze("vyhodnoceni");
   }
 
   function zpet() {
     if (faze === "formular") return setFaze("vyber");
-    if (faze === "vyber") {
+    if (faze === "vyber") return setFaze("vyhodnoceni");
+    if (faze === "vyhodnoceni") {
       setFaze("otazky");
       return setKrok(POCET_OTAZEK - 1);
     }
@@ -103,7 +124,10 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
               <br />
               <span className="text-mango-400">WILD&amp;COCO rutinu</span>
             </h1>
-            <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
+            <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] font-bold leading-relaxed text-mango-400">
+              {VYHODNOCENI_TEXTY.uvodniOtazka}
+            </p>
+            <p className="mx-auto mt-2 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
               {sazba(PROFIL_HOOK)}
             </p>
           </div>
@@ -131,9 +155,64 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
         </section>
       )}
 
-      {faze === "vyber" && (
+      {faze === "vyhodnoceni" && vyhodnoceni && (
         <section className="space-y-5">
           <Konfety kusu={40} />
+          <div className="space-y-2 text-center">
+            {/* Emoji na vlastním řádku — v nadpisu rozbíjí sazbu i účaří. */}
+            <div className="relative mx-auto grid h-16 w-16 place-items-center">
+              <span className="zare absolute inset-0 rounded-full" aria-hidden />
+              <span className="relative text-4xl leading-none" aria-hidden>
+                {VYHODNOCENI_TEXTY.nadpisEmoji}
+              </span>
+            </div>
+            <h1 className="text-stin">
+              {VYHODNOCENI_TEXTY.nadpisPrefix}
+              <br />
+              <span className="text-mango-400">{vyhodnoceni.personaNadpis}</span>
+            </h1>
+            <p className="mx-auto max-w-[21rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
+              {vyhodnoceni.uvod}
+            </p>
+          </div>
+
+          <p className="mx-auto max-w-[22rem] text-center text-[0.9375rem] leading-relaxed text-kokos-50/85">
+            {vyhodnoceni.pribeh}
+          </p>
+
+          <div className="karta space-y-3">
+            <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisPostrehy}</p>
+            <ul className="space-y-3">
+              {vyhodnoceni.postrehy.map((postreh) => (
+                <PostrehRadek key={postreh.text} postreh={postreh} />
+              ))}
+            </ul>
+          </div>
+
+          <div className="karta space-y-2">
+            <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisProcProdukty}</p>
+            <p className="text-[0.9375rem] leading-relaxed text-kokos-50/90">
+              {vyhodnoceni.procProdukty}
+            </p>
+          </div>
+
+          {/* Povinné odlišení od zdravotního doporučení (brief 4. 8. 2026). */}
+          <p className="text-center text-xs leading-relaxed text-kokos-50/70">
+            {PROFIL_DISCLAIMER}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setFaze("vyber")}
+            className="tlacitko-hlavni"
+          >
+            {VYHODNOCENI_TEXTY.tlacitkoNabidka} →
+          </button>
+        </section>
+      )}
+
+      {faze === "vyber" && (
+        <section className="space-y-5">
           <div className="space-y-2 text-center">
             <div className="relative mx-auto grid h-16 w-16 place-items-center">
               <span className="zare absolute inset-0 rounded-full" aria-hidden />
@@ -160,6 +239,31 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
               setFaze("formular");
             }}
           />
+
+          {/* Odbočka na celý sortiment — graficky odlišená od doporučených dlaždic. */}
+          {celyKatalog ? (
+            <KatalogVyber
+              produkty={PRODUKTY}
+              vybrat={(p) => {
+                setProdukt(p);
+                setFaze("formular");
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCelyKatalog(true)}
+              className="flex min-h-[3.5rem] w-full items-center justify-center gap-3 rounded-2xl
+                         border-2 border-dashed border-mango-400/80 bg-mango-400/10 px-5 py-3
+                         text-center text-base font-extrabold text-mango-400 transition
+                         hover:bg-mango-400/20 active:translate-y-[2px]"
+            >
+              <span className="text-2xl" aria-hidden>
+                {VYHODNOCENI_TEXTY.katalogEmoji}
+              </span>
+              <span className="leading-tight">{VYHODNOCENI_TEXTY.tlacitkoKatalog}</span>
+            </button>
+          )}
 
           {/* Povinné odlišení od zdravotního doporučení (brief 4. 8. 2026). */}
           <p className="karta text-center text-[0.8125rem] font-semibold leading-relaxed text-kokos-50/90">
@@ -269,6 +373,23 @@ export default function KvizFlowProfil({ bavic }: { bavic: Bavic }) {
 /* -------------------------------------------------------------------------- */
 /* Dílčí kousky — vlastní kopie, `KvizFlow.tsx` zůstává nedotčený              */
 /* -------------------------------------------------------------------------- */
+
+/** Jeden osobní postřeh — emoji v pevné dlaždici drží optickou osu seznamu. */
+function PostrehRadek({ postreh }: { postreh: Postreh }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-xl"
+        aria-hidden
+      >
+        {postreh.emoji}
+      </span>
+      <span className="flex-1 pt-1 text-[0.9375rem] leading-relaxed text-kokos-50/90">
+        {postreh.text}
+      </span>
+    </li>
+  );
+}
 
 function MrizkaProduktu({
   produkty,
