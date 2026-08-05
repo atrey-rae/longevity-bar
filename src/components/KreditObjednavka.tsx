@@ -89,13 +89,17 @@ export default function KreditObjednavka({
           return (
             <li
               key={polozka.id}
-              className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-3 py-2.5"
+              className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition ${
+                pocet > 0
+                  ? "border-mango-400/60 bg-mango-400/[0.12]"
+                  : "border-white/15 bg-white/[0.08]"
+              }`}
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-extrabold leading-snug text-kokos-50">
                   {polozka.n}
                 </span>
-                <span className="block text-xs font-semibold text-kokos-50/70">
+                <span className="block text-xs font-semibold tabular-nums text-kokos-50/75">
                   {korun(polozka.price)}
                 </span>
               </span>
@@ -127,7 +131,7 @@ export default function KreditObjednavka({
         })}
       </ul>
 
-      <div className="flex items-baseline justify-between gap-3 px-1">
+      <div className="flex items-baseline justify-between gap-3 border-t border-white/10 px-1 pt-3">
         <span className="text-xs font-bold uppercase tracking-widest text-kokos-50/70">
           Vybráno
         </span>
@@ -150,7 +154,9 @@ export default function KreditObjednavka({
         type="button"
         onClick={objednat}
         disabled={vybranoKusu === 0 || prekroceno || stav === "odesilam"}
-        className="tlacitko-hlavni disabled:opacity-50"
+        /* Nečinné tlačítko nesmí být nejsytější plocha na obrazovce — zlatý
+           blok při „nic nevybráno“ křičel a přitom nešel zmáčknout. */
+        className="tlacitko-hlavni disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-kokos-50/50 disabled:shadow-none"
       >
         {stav === "odesilam" ? "Objednávám…" : "Objednat"}
       </button>

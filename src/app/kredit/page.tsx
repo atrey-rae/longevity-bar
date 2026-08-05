@@ -62,7 +62,22 @@ export default async function KreditPage() {
         <p className="mt-3 text-[2.6rem] font-black leading-none tabular-nums text-kokos-50">
           {korun(credit.remaining)}
         </p>
-        <p className="mt-2 text-sm font-semibold text-kokos-50/70">
+        {/* Poměr utraceno : zbývá jedním pohledem — řádek pod ním ho jen
+            pojmenuje čísly. Ryze dekorativní, proto `aria-hidden`. */}
+        {credit.total > 0 && (
+          <div
+            aria-hidden
+            className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/15"
+          >
+            <div
+              className="h-full rounded-full bg-mango-400"
+              style={{
+                width: `${Math.max(0, Math.min(100, (credit.remaining / credit.total) * 100))}%`,
+              }}
+            />
+          </div>
+        )}
+        <p className="mt-2.5 text-sm font-semibold tabular-nums text-kokos-50/80">
           zbývá z {korun(credit.total)} · utraceno {korun(credit.spent)}
         </p>
       </section>
@@ -81,10 +96,13 @@ export default async function KreditPage() {
       )}
 
       {catalog.length > 0 && credit.remaining > 0 && (
-        <section className="karta space-y-3">
-          <h2 className="text-center text-lg font-black text-kokos-50">
-            Co si dáš?
-          </h2>
+        /* Bez vnější „karty“: řádky katalogu jsou samy karty a sklo ve skle
+           z nich dělalo šedou kaši. Nadpis jede stejným štítkem jako sekce
+           v kvízu i v katalozích — jeden systém napříč appkou. */
+        <section className="space-y-3">
+          {/* O stupeň silnější než „Už vydáno“: tohle je pozvánka k akci,
+              historie je jen archiv. Rodina štítku zůstává stejná. */}
+          <h2 className="stitek-sekce text-[0.78rem] text-kokos-50">Co si dáš?</h2>
           <KreditObjednavka katalog={catalog} zbyva={credit.remaining} />
         </section>
       )}
@@ -97,9 +115,7 @@ export default async function KreditPage() {
 
       {vydane.length > 0 && (
         <section className="karta space-y-2.5">
-          <h2 className="text-sm font-black uppercase tracking-widest text-kokos-50/70">
-            Už vydáno
-          </h2>
+          <h2 className="stitek-sekce">Už vydáno</h2>
           <ul className="space-y-2">
             {vydane.map((objednavka) => (
               <li
@@ -143,7 +159,7 @@ function shrnutiPolozek(objednavka: BarCreditObjednavka): string {
 function Vstupenka({ objednavka }: { objednavka: BarCreditObjednavka }) {
   return (
     <div className="zivy-preliv rounded-[2rem] p-1.5 shadow-karta">
-      <div className="relative overflow-hidden rounded-[1.6rem] bg-inkoust/90 px-5 py-6">
+      <div className="relative overflow-hidden rounded-[1.6rem] bg-inkoust/90 px-5 py-7">
         <span
           className="animate-skenPruh pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/25 to-transparent"
           aria-hidden
@@ -161,24 +177,28 @@ function Vstupenka({ objednavka }: { objednavka: BarCreditObjednavka }) {
             </li>
           ))}
         </ul>
-        <p className="relative mt-2 text-center text-sm font-bold text-mango-400">
+        <p className="relative mt-2.5 text-center text-base font-black tabular-nums text-mango-400">
           {korun(objednavka.total)}
         </p>
 
-        <div className="relative mt-5">
+        <div className="relative mt-6">
           <ZiveHodiny />
         </div>
 
-        <div className="relative mt-5">
+        {/* Stejný předěl jako u věrnostní odměny: nahoře DŮKAZ pro obsluhu,
+            pod linkou AKCE. Na /odmena je akce ve vlastní kartě — tady musí
+            zůstat u své objednávky (může jich čekat víc), linku proto dělá
+            oddělovač uvnitř lístku. */}
+        <div className="relative mt-6 border-t border-white/10 pt-5">
           <VydatTlacitko
             endpoint="/api/kredit/vydat"
             telo={{ orderId: objednavka.id }}
           />
+          <p className="mt-2.5 text-center text-xs leading-relaxed text-white/60">
+            Tlačítko mačká jen obsluha. Když ho zmáčkneš sám, objednávka se
+            odepíše z kreditu.
+          </p>
         </div>
-        <p className="relative mt-2 text-center text-xs text-white/60">
-          Tlačítko mačká jen obsluha. Když ho zmáčkneš sám, objednávka se
-          odepíše z kreditu.
-        </p>
       </div>
     </div>
   );

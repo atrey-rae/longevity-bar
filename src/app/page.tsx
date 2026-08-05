@@ -58,7 +58,10 @@ const PASSPORTS = [
     title: "Daruj kamarádům slevu 21 %",
     copy: "Ukaž jim QR kód, vyplní kvíz a kupón jim přijde na e-mail.",
     number: "05",
-    accent: "from-laguna-600 to-laguna-800",
+    // Ne laguna: karta 02 (kvíz) má stejný přeliv a v šesti kartách za sebou
+    // se s ní dárek slil. Lesní zelená se od ní odliší a přitom drží AA
+    // (kokos-50/90 na #166634 = 5,82:1) a ústí do stejné laguna-800.
+    accent: "from-list-700 to-laguna-700",
     ink: "text-kokos-50",
   },
 ] as const;

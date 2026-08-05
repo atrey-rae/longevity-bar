@@ -167,10 +167,12 @@ export default function KvizFlowProfil({
         <section className="space-y-5">
           <Konfety kusu={40} />
           <div className="space-y-2 text-center">
-            {/* Emoji na vlastním řádku — v nadpisu rozbíjí sazbu i účaří. */}
-            <div className="relative mx-auto grid h-16 w-16 place-items-center">
+            {/* Emoji na vlastním řádku — v nadpisu rozbíjí sazbu i účaří.
+                Vyhodnocení je vrchol kvízu, takže stejná váha jako na úvodní
+                a výherní obrazovce, ne drobná ikonka. */}
+            <div className="relative mx-auto grid h-20 w-20 place-items-center">
               <span className="zare absolute inset-0 rounded-full" aria-hidden />
-              <span className="relative text-4xl leading-none" aria-hidden>
+              <span className="relative text-5xl leading-none" aria-hidden>
                 {VYHODNOCENI_TEXTY.nadpisEmoji}
               </span>
             </div>
@@ -184,20 +186,25 @@ export default function KvizFlowProfil({
             </p>
           </div>
 
-          <p className="mx-auto max-w-[22rem] text-center text-[0.9375rem] leading-relaxed text-kokos-50/85">
+          {/* Pět řádků na střed se čte špatně — rozevlátý rag na obou stranách.
+              Vlevo a se zlatým pravítkem (stejný vzor jako hlavičky sekcí
+              v /sortiment/*) je z toho čitelný lead, ne odstavec na ztracenou. */}
+          <p className="mx-auto max-w-[24rem] border-l-[3px] border-mango-400/70 pl-4 text-[0.9375rem] leading-relaxed text-kokos-50/[0.88]">
             {vyhodnoceni.pribeh}
           </p>
 
           <div className="karta space-y-3">
             <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisPostrehy}</p>
-            <ul className="space-y-3">
+            <ul>
               {vyhodnoceni.postrehy.map((postreh) => (
                 <PostrehRadek key={postreh.text} postreh={postreh} />
               ))}
             </ul>
           </div>
 
-          <div className="karta space-y-2">
+          {/* Teplý odstín místo třetí stejné skleněné desky: karta „proč“ je
+              argument, který ústí do zlatého CTA hned pod ní. */}
+          <div className="karta space-y-2 border-mango-400/35 bg-mango-400/[0.11]">
             <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisProcProdukty}</p>
             <p className="text-[0.9375rem] leading-relaxed text-kokos-50/90">
               {vyhodnoceni.procProdukty}
@@ -250,13 +257,17 @@ export default function KvizFlowProfil({
 
           {/* Odbočka na celý sortiment — graficky odlišená od doporučených dlaždic. */}
           {celyKatalog ? (
-            <KatalogVyber
-              produkty={PRODUKTY}
-              vybrat={(p) => {
-                setProdukt(p);
-                setFaze("formular");
-              }}
-            />
+            /* Předěl: bez něj katalog navazoval na doporučené dlaždice tak
+               těsně, že vypadal jako jejich pokračování. */
+            <div className="border-t border-white/15 pt-5">
+              <KatalogVyber
+                produkty={PRODUKTY}
+                vybrat={(p) => {
+                  setProdukt(p);
+                  setFaze("formular");
+                }}
+              />
+            </div>
           ) : (
             <button
               type="button"
@@ -385,12 +396,16 @@ export default function KvizFlowProfil({
 /* Dílčí kousky — vlastní kopie, `KvizFlow.tsx` zůstává nedotčený              */
 /* -------------------------------------------------------------------------- */
 
-/** Jeden osobní postřeh — emoji v pevné dlaždici drží optickou osu seznamu. */
+/**
+ * Jeden osobní postřeh — emoji v pevné dlaždici drží optickou osu seznamu.
+ * Vlásková linka mezi řádky: čtyři odstavce po 3–5 řádcích jinak splynou
+ * v jeden blok textu a postřehy přestanou být čtyři.
+ */
 function PostrehRadek({ postreh }: { postreh: Postreh }) {
   return (
-    <li className="flex items-start gap-3">
+    <li className="flex items-start gap-3 border-t border-white/10 pt-3.5 first:border-0 first:pt-0 [&+li]:mt-3.5">
       <span
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 text-xl"
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-white/[0.18] to-white/[0.06] text-xl ring-1 ring-inset ring-white/10"
         aria-hidden
       >
         {postreh.emoji}

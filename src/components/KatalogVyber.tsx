@@ -1,5 +1,6 @@
 "use client";
 
+import { KotvyKategorii, kotva } from "@/app/sortiment/_ui";
 import { KATEGORIE_LABEL, type Kategorie, type KvizProdukt } from "@/lib/kviz";
 
 /** Pořadí sekcí v katalogu — kopíruje pořadí skupin v `PRODUKTY`. */
@@ -41,10 +42,25 @@ export default function KatalogVyber({
   produkty: KvizProdukt[];
   vybrat: (produkt: KvizProdukt) => void;
 }) {
+  const skupiny = seskupitPodleKategorie(produkty);
+
   return (
     <div className="space-y-5">
-      {seskupitPodleKategorie(produkty).map((skupina) => (
-        <div key={skupina.kategorie} className="space-y-2.5">
+      {/* Rozbalený sortiment je na mobilu přes 10 000 px. Bez kotev se v něm
+          nedá vrátit ani doskočit — bere se proto stejný přilepený pás jako
+          v /sortiment/*, ať je to napříč appkou jeden vzor. */}
+      {skupiny.length > 1 && (
+        <KotvyKategorii
+          popisek="Kategorie sortimentu"
+          kategorie={skupiny.map((s) => KATEGORIE_LABEL[s.kategorie])}
+        />
+      )}
+      {skupiny.map((skupina) => (
+        <div
+          key={skupina.kategorie}
+          id={kotva(KATEGORIE_LABEL[skupina.kategorie])}
+          className="scroll-mt-32 space-y-2.5"
+        >
           <p className="stitek-sekce">{KATEGORIE_LABEL[skupina.kategorie]}</p>
           <div className="grid grid-cols-2 gap-2.5">
             {skupina.polozky.map((p) => (

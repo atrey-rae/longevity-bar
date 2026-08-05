@@ -40,6 +40,9 @@ const config: Config = {
         list: {
           500: "#25a35a",
           600: "#1b7a43",
+          // Karta „Dárek přátelům" na rozcestníku — 600 by na krémový popisek
+          // dala jen 4,50:1 (a 4,21:1 na eyebrow). 700 drží 5,8:1 / 5,4:1.
+          700: "#166634",
         },
         inkoust: "#0b201d",
       },

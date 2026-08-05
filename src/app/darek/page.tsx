@@ -69,9 +69,9 @@ export default async function DarekPage() {
         </p>
       </section>
 
-      <section className="karta-svetla text-center">
+      <section className="karta-svetla overflow-hidden text-center">
         {maOsobni && (
-          <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-inkoust/60">
+          <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-inkoust/70">
             {DAREK_OSOBNI_QR_TITULEK}
           </p>
         )}
@@ -87,21 +87,34 @@ export default async function DarekPage() {
           }
           width={480}
           height={480}
-          className="mx-auto h-auto w-full max-w-[17rem] rounded-2xl bg-white p-3"
+          /* Bez stropu 17 rem: osobní QR nese delší URL, má tedy hustší matici
+             a na 375 px vychází ~6 px na modul. Přes celou šířku karty je to
+             ~6,8 px — rozdíl, který na slunci a na promáčklém displeji
+             rozhoduje. `ring` odlišuje bílou plochu QR od krémové karty. */
+          className="mx-auto h-auto w-full max-w-[22rem] rounded-2xl bg-white p-3 ring-1 ring-inkoust/10"
         />
         <a
           href={maOsobni && osobniUrl ? osobniUrl : DAREK_KVIZ_URL}
-          className="odkaz mt-4 block break-all text-xs font-semibold text-inkoust/70"
+          className="odkaz mt-4 block break-all text-[0.8125rem] font-semibold text-inkoust/80"
         >
           {maOsobni ? darekKvizOdkazText(referralKod) : DAREK_KVIZ_ODKAZ_TEXT}
         </a>
-      </section>
 
-      {maOsobni && (
-        <p className="karta text-center text-sm font-semibold leading-relaxed text-kokos-50/90">
-          {darekPocitadloText(pozvanych)}
-        </p>
-      )}
+        {/* Počítadlo patří k osobnímu QR — jako patka jedné karty, ne jako
+            samostatná deska o kus níž. Nulový stav drží nižší váhu, ať se
+            „zatím nikdo“ netváří jako úspěch. */}
+        {maOsobni && (
+          <p
+            className={`-mx-5 -mb-5 mt-5 border-t border-inkoust/10 bg-inkoust/[0.04] px-5 py-3.5 text-sm leading-relaxed ${
+              pozvanych > 0
+                ? "font-black text-inkoust"
+                : "font-semibold text-inkoust/70"
+            }`}
+          >
+            {darekPocitadloText(pozvanych)}
+          </p>
+        )}
+      </section>
 
       {/* Výzva jen nepřihlášeným. Přihlášenému, kterému se osobní QR nepovedlo
           vyrobit, by „přihlas se“ nedávalo smysl — ten dostane statické QR
