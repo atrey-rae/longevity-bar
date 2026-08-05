@@ -424,6 +424,68 @@ s důvodem. Zdroj pravdy mapování produkt↔kód:
 od získání kontaktu; pak jen zákazníci e-shopu. Kontakty mazat nejpozději
 po 6 měsících.
 
+### 9.1 Dvě varianty kvízu a politika přihlášení (migrace 006)
+
+**Varianty.** Host si na úvodní obrazovce vybírá mezi dvěma kvízy:
+
+| Varianta | Otázek | Soubor |
+|---|---|---|
+| `mikrobiom` — „Odemkni potenciál svého mikrobiomu!" | 3 | `src/lib/kviz.ts` |
+| `profil` — „Longevity profil" | 9 | `src/lib/kviz-profil.ts` |
+
+Obě jsou v registru `src/lib/kviz-varianty.ts` (společné rozhraní otázek
+a doporučení). **Doporučená varianta** — z politiky nebo z `?varianta=`
+v tištěném QR — je jen **předvolená**, druhá je vždy dostupná. Každou
+variantu smí host dokončit **právě jednou**, druhou pořád ano.
+
+**Politika přihlášení.** Singleton `quiz_policy.login_required`
+(výchozí `true`) rozhoduje, co se stane na `/kviz/<bavič>`:
+
+- `true` → nepřihlášený se přesměruje na `/prihlaseni?next=/kviz/<bavič>`
+  (bavič se tím neztratí; `next` skládá server ze slugu z katalogu, takže
+  z něj nejde udělat open redirect). Po přihlášení se host vrátí na týž QR.
+- `false` → anonymní průchod. Duplicitám brání **best-effort** hash
+  kontaktu: `HMAC-SHA256(QUIZ_CONTACT_HMAC_SECRET, e-mail + telefon)`
+  v `quiz_completions.contact_hash`. Kdo zadá jiný kontakt, projde znovu —
+  hrubé zneužití řeší varováním v adminu Healing, ne appka.
+
+Vynucení „jednu variantu jednou" je **atomické v databázi** (unikátní
+indexy v migraci 006). Nárok se zabírá **před** založením kupónu, aby
+duplicitní pokus nespálil kód v e-shopu; když pak selže zápis leadu,
+nárok se zase uvolní.
+
+**⚠️ Odpovědi a průběžné skóre nikdy neopustí prohlížeč.** V databázi
+není žádný sloupec pro odpovědi a server je nedostane ani v logu ani
+v analytics — na server jde jen slug vybraného produktu a název varianty.
+
+**Interní API pro Healing** — `/api/interni/quiz-policy`, autorizace
+hlavičkou `Authorization: Bearer $HEALING_API_TOKEN` (bez tokenu je
+endpoint zavřený, 503):
+
+```bash
+# přečtení politiky
+curl -H "Authorization: Bearer $HEALING_API_TOKEN" \
+  https://bar.peaceandcoco.com/api/interni/quiz-policy
+# → {"quizLoginRequired":true,"recommendedVariant":"mikrobiom",
+#    "updatedAt":"2026-08-05T09:12:00Z","updatedBy":"healing-api"}
+
+# vypnutí povinného přihlášení + předvolba delší varianty
+curl -X PUT -H "Authorization: Bearer $HEALING_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"loginRequired":false,"recommendedVariant":"profil","updatedBy":"atrey"}' \
+  https://bar.peaceandcoco.com/api/interni/quiz-policy
+```
+
+Aktuální politiku vidí obsluha i v dashboardu `/admin` (sekce „Kvíz
+bavičů" — přihlášení, doporučená varianta, kdo a kdy naposledy přepnul).
+
+**Env navíc:** `HEALING_API_TOKEN`, `QUIZ_CONTACT_HMAC_SECRET`.
+
+**Kontroly:** `npm run check` (= `scripts/check-kviz.ts` projede všech
+80 + 138 240 kombinací odpovědí obou variant a přepínač variant;
+`scripts/check-kviz-policy.ts` ověří normalizaci kontaktu, HMAC hash,
+bearer autorizaci a bezpečný návrat na QR).
+
 ---
 
 ## Kontakt

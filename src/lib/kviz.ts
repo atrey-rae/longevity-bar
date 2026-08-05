@@ -308,8 +308,11 @@ export const GUT_PILIR: Record<OdpovedQ2, string[]> = {
  * `nesnidam` = člověk snídani vynechává → věci, co se vejdou do kávy nebo
  * do ruky bez talíře: Essential Dynamic do kávy, protein, mladý ječmen,
  * probiotika (Atreyovo zadání 4. 8.).
+ *
+ * Exportováno kvůli variantě „Longevity profil" (`lib/kviz-profil.ts`),
+ * která na stejných pilířích staví devítiotázkové doporučení.
  */
-const FORMAT_PILIR: Record<OdpovedQ3, string[]> = {
+export const FORMAT_PILIR: Record<OdpovedQ3, string[]> = {
   miska: ["GRNSTR", "GRN250", "CCG150", "MNG250"],
   slana: ["BURGER", "CHLEBAMA", "TEMPLNT", "PESTO"],
   lehka: ["VODA3", "VODA1", "NEKTAR2", "CCGYC150"],
@@ -318,7 +321,7 @@ const FORMAT_PILIR: Record<OdpovedQ3, string[]> = {
 };
 
 /** Akcent podle otázky 1 — co si člověk v životě nejvíc hlídá. */
-const AKCENT_PILIR: Record<OdpovedQ1, string[]> = {
+export const AKCENT_PILIR: Record<OdpovedQ1, string[]> = {
   zdravi: ["ESSDNM", "PREM300", "SYMB30"],
   energie: ["PROTEIN", "SIXCH", "OLEJ"],
   klid: ["JECMEN", "CACAO", "SIXCHC"],

@@ -77,6 +77,34 @@ export type QuizLead = {
   created_at: string;
 }
 
+/** Varianta kvízu — hodnoty hlídá check constraint v migraci 006. */
+export type QuizVariant = "mikrobiom" | "profil";
+
+/**
+ * Singleton s politikou kvízu (migrace 006). Vždy právě jeden řádek,
+ * `id` je konstantně `true`.
+ */
+export type QuizPolicyRow = {
+  id: boolean;
+  login_required: boolean;
+  recommended_variant: QuizVariant;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/**
+ * Dokončená varianta kvízu (migrace 006). Identitou je BUĎ `user_id`,
+ * NEBO `contact_hash` — nikdy obojí. Žádné odpovědi ani skóre.
+ */
+export type QuizCompletion = {
+  id: string;
+  user_id: string | null;
+  contact_hash: string | null;
+  variant: QuizVariant;
+  bavic: string | null;
+  created_at: string;
+}
+
 /**
  * Tvar tabulky očekávaný `@supabase/postgrest-js`.
  * Vztahy (`Relationships`) nepoužíváme — vnořené selecty nikde neděláme,
@@ -134,6 +162,19 @@ export interface Database {
           created_at?: string;
         },
         Partial<QuizLead>
+      >;
+      quiz_policy: Tabulka<
+        QuizPolicyRow,
+        Partial<QuizPolicyRow>,
+        Partial<QuizPolicyRow>
+      >;
+      quiz_completions: Tabulka<
+        QuizCompletion,
+        Omit<QuizCompletion, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        },
+        Partial<QuizCompletion>
       >;
     };
     Views: Record<string, never>;

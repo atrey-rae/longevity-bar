@@ -1,14 +1,21 @@
 import Link from "next/link";
 
+import { nazevVarianty } from "@/lib/kviz-varianty";
 import {
   CATEGORIES,
   CATEGORY_EMOJI,
   CATEGORY_LABEL,
   tierNumberForIndex,
 } from "@/lib/loyalty";
+import { getQuizPolicy } from "@/lib/quiz-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { odmeny, razitka, zakaznici } from "@/lib/text";
-import { formatCzechDateLong, pragueDateString, pragueDayRange } from "@/lib/time";
+import {
+  formatCzechDateLong,
+  formatCzechDateTime,
+  pragueDateString,
+  pragueDayRange,
+} from "@/lib/time";
 import type { Product, ProductCategory, Reward } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +32,8 @@ export default async function AdminPrehledPage() {
   const admin = createAdminClient();
   const dnes = pragueDateString();
   const { start, end } = pragueDayRange(dnes);
+
+  const policy = await getQuizPolicy();
 
   const [razitkaDnesRes, razitkaCelkemRes, uzivateleRes, odmenyRes, produktyRes, denRes] =
     await Promise.all([
@@ -125,6 +134,29 @@ export default async function AdminPrehledPage() {
         {zakaznici(pocetUzivatelu)} celkem · {odmeny(cekajici.length)} čeká na
         vyzvednutí
       </p>
+
+      {/* Politika kvízu — přepíná ji Healing přes /api/interni/quiz-policy,
+          tady je jen vidět, co zrovna platí. */}
+      <section className="karta space-y-1.5">
+        <h2 className="text-base font-black uppercase tracking-widest text-kokos-50/70">
+          Kvíz bavičů
+        </h2>
+        <p className="text-sm font-semibold">
+          Přihlášení:{" "}
+          <strong className={policy.loginRequired ? "text-mango-400" : ""}>
+            {policy.loginRequired ? "vyžadováno" : "nevyžadováno (anonymní)"}
+          </strong>
+        </p>
+        <p className="text-sm font-semibold">
+          Doporučená varianta:{" "}
+          <strong>{nazevVarianty(policy.recommendedVariant)}</strong>
+        </p>
+        <p className="text-xs text-kokos-50/60">
+          {policy.updatedAt
+            ? `Naposledy změnil ${policy.updatedBy ?? "neznámo kdo"} · ${formatCzechDateTime(policy.updatedAt)}`
+            : "Zatím beze změny — platí výchozí nastavení z migrace."}
+        </p>
+      </section>
 
       {/* Čeká na výběr zákazníka */}
       <section className="karta space-y-2">

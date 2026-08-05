@@ -41,18 +41,24 @@ a v Atreyových trezorech. Nikdy je nedávat do repa, chatu ani logů.
 | „Kód je zadán ve špatném tvaru" v košíku | kupón má v CS visibility=false | V CS admin nastavit viditelný=ANO (všechny nové zakládáme visibility:true) |
 | Auth kódy nechodí | Supabase SMTP se tiše odulozilo (známý bug UI — Save vrací 400) | Supabase → Auth → SMTP: znovu vyplnit a ověřit PATCH 200 + reload |
 | Upsert do profiles tiše selhává po ALTER TABLE | PostgREST nezná nový sloupec | SQL editor: `notify pgrst, 'reload schema';` |
-| Kvíz vrací málo produktů po úpravě pilířů | rozbité slugy v GUT/FORMAT/AKCENT_PILIR | `npx tsx scripts/check-kviz.ts` (musí být 80/80) |
+| Kvíz vrací málo produktů po úpravě pilířů | rozbité slugy v GUT/FORMAT/AKCENT_PILIR a v pilířích varianty „profil“ | `npm run check` (musí být 80/80 i 138240/138240) |
+| Kvíz nečekaně chce/nechce přihlášení | přepnutá politika `quiz_policy.login_required` | `/admin` → sekce „Kvíz bavičů“ ukáže stav i kdo přepnul; změna jen přes interní API (README §9.1) |
+| Host hlásí „tenhle kvíz už máš hotový“ | dokončil tu variantu dřív (`quiz_completions`) | Správně — pošli ho na druhou variantu, na tu nárok má |
 
 ## 4. Deploy a rollback
 
 ```bash
-npx tsc --noEmit && npx tsx scripts/check-kviz.ts   # gate
-npx vercel@latest deploy --prod --yes               # deploy
+npm run typecheck && npm run check     # gate (tsc + kontroly kvízu)
+npx vercel@latest deploy --prod --yes  # deploy
 ```
 
 Rollback: Vercel dashboard → Deployments → předchozí Production →
 „Promote to Production" (nebo `npx vercel rollback`). DB migrace jsou
-aditivní (001–003), rollback DB není za festivalu potřeba ani žádoucí.
+aditivní (001–003, 006), rollback DB není za festivalu potřeba ani žádoucí.
+
+⚠️ Migrace `006_quiz_policy.sql` se pouští stejně jako ostatní (Supabase →
+SQL Editor → Run) a je idempotentní. Bez ní kvíz jede na výchozí politice
+(přihlášení ANO) a evidence dokončených variant se tiše neukládá.
 
 Deploy gate dle P&COS: produkční zásah za festivalu = explicitní GO Atreye.
 

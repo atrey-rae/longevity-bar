@@ -11,7 +11,17 @@ import {
   type Bavic,
   type KvizProdukt,
 } from "@/lib/kviz";
+import {
+  druhaVarianta,
+  jeVarianta,
+  nazevVarianty,
+  VYCHOZI_VARIANTA,
+  type KvizVarianta,
+} from "@/lib/kviz-varianty";
+import { hashKontaktu, normalizovatTelefon } from "@/lib/kontakt";
+import { uvolnitDokonceni, zabratDokonceni } from "@/lib/quiz-policy";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/supabase/server";
 
 /**
  * Server action kvízu bavičů fronty.
@@ -32,6 +42,8 @@ export type VysledekKuponu =
       emailOdeslan: boolean;
       /** Podmínky se liší podle toho, zda vznikl personalizovaný kupón. */
       podminky: string;
+      /** Dokončená varianta — obrazovka na ni navazuje nabídkou té druhé. */
+      varianta: KvizVarianta;
     }
   | { stav: "chyba"; zprava: string };
 
@@ -56,14 +68,6 @@ function chyba(zprava: string): VysledekKuponu {
   return { stav: "chyba", zprava };
 }
 
-/** 9 číslic bez předvolby = české číslo (stejné pravidlo jako v `app/actions.ts`). */
-function normalizovatTelefon(vstup: string): string | null {
-  const cislice = vstup.replace(/[\s()./-]/g, "");
-  if (!/^\+?\d{9,15}$/.test(cislice)) return null;
-  if (cislice.startsWith("+")) return cislice;
-  return cislice.length === 9 ? `+420${cislice}` : `+${cislice}`;
-}
-
 export async function odeslatKvizLead(
   _predchozi: VysledekKuponu | null,
   formData: FormData,
@@ -74,6 +78,13 @@ export async function odeslatKvizLead(
   if (!bavic || !produkt) {
     return chyba("Něco se rozbilo. Načti prosím QR kód znovu.");
   }
+
+  // Variantu bereme z formuláře, ale jen jako allowlist — neznámá hodnota
+  // spadne na výchozí, aby ji nešlo použít k obejití evidence dokončení.
+  const zFormulare = text(formData, "varianta");
+  const varianta: KvizVarianta = jeVarianta(zFormulare)
+    ? zFormulare
+    : VYCHOZI_VARIANTA;
 
   const jmeno = text(formData, "jmeno").slice(0, 80);
   if (jmeno.length < 2) return chyba("Napiš nám prosím svoje křestní jméno.");
@@ -90,21 +101,11 @@ export async function odeslatKvizLead(
   const sdilenyKod = kodKuponu(bavic.slug, produkt.slug);
   if (!sdilenyKod) return chyba("Něco se rozbilo. Načti prosím QR kód znovu.");
 
-  // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
-  // bez limitu počtu objednávek. Když API e-shopu neodpoví, spadneme na
-  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje) a pošleme
-  // o tom notifikaci — tichý fallback by se na festivalu nikdy nezjistil.
-  const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
-  const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
-  const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
-  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
-
-  /* --- Rate-limit + zápis leadu ------------------------------------------ */
+  /* --- Rate-limit --------------------------------------------------------- */
   // Vše kolem databáze je v try/catch: výjimka ze server action by vyhodila
   // error boundary a návštěvník by přišel o celý kvíz.
   try {
     const admin = createAdminClient();
-
     const od = new Date(Date.now() - LIMIT_MINUT * 60_000).toISOString();
     const { data: nedavne, error: chybaLimitu } = await admin
       .from("quiz_leads")
@@ -122,7 +123,41 @@ export async function odeslatKvizLead(
         "Kupón už jsme ti před chvílí poslali — mrkni do e-mailu, i do spamu.",
       );
     }
+  } catch (e) {
+    console.warn("[kviz] rate-limit dotaz selhal:", e);
+  }
 
+  /* --- Jedno dokončení na variantu ---------------------------------------- */
+  // Nárok se zabírá PŘED založením kupónu — duplicitní pokus tak nespálí kód
+  // v e-shopu. Identita je přihlášený účet, a když politika přihlášení
+  // nevyžaduje, tak HMAC z e-mailu + telefonu (best-effort, viz migrace 006).
+  const user = await getSessionUser();
+  const narok = await zabratDokonceni({
+    userId: user?.id ?? null,
+    contactHash: user ? null : hashKontaktu(email, telefon),
+    varianta,
+    bavic: bavic.kod,
+  });
+
+  if (narok.stav === "duplicita") {
+    return chyba(
+      `Tenhle kvíz už máš hotový 💛 Zkus ${nazevVarianty(druhaVarianta(varianta))} — na ten kupón ještě máš nárok.`,
+    );
+  }
+  const narokId = narok.stav === "ok" ? narok.id : null;
+
+  // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
+  // bez limitu počtu objednávek. Když API e-shopu neodpoví, spadneme na
+  // sdílený předgenerovaný kód (přísnější podmínky, ale funguje) a pošleme
+  // o tom notifikaci — tichý fallback by se na festivalu nikdy nezjistil.
+  const osobni = await vytvoritOsobniKupon({ bavic, produkt, email, sdilenyKod });
+  const duvodFallbacku = "chyba" in osobni ? osobni.chyba : null;
+  const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
+  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
+
+  /* --- Zápis leadu -------------------------------------------------------- */
+  try {
+    const admin = createAdminClient();
     const { error: chybaZapisu } = await admin.from("quiz_leads").insert({
       bavic: bavic.kod,
       product_slug: produkt.slug,
@@ -135,10 +170,14 @@ export async function odeslatKvizLead(
 
     if (chybaZapisu) {
       console.error("[kviz] zápis leadu selhal:", chybaZapisu.message);
+      // Host kupón nedostal — nesmí zůstat zablokovaný na variantě,
+      // kterou reálně nedokončil.
+      await uvolnitDokonceni(narokId);
       return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
     }
   } catch (e) {
     console.error("[kviz] databáze není dostupná:", e);
+    await uvolnitDokonceni(narokId);
     return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
   }
 
@@ -156,6 +195,7 @@ export async function odeslatKvizLead(
           telefon,
           sdilenyKod,
           duvod: duvodFallbacku,
+          varianta,
         })
       : Promise.resolve(),
   ]);
@@ -168,6 +208,7 @@ export async function odeslatKvizLead(
     email,
     emailOdeslan,
     podminky,
+    varianta,
   };
 }
 
@@ -338,6 +379,7 @@ async function oznamitFallback({
   telefon,
   sdilenyKod,
   duvod,
+  varianta,
 }: {
   bavic: Bavic;
   produkt: KvizProdukt;
@@ -346,6 +388,7 @@ async function oznamitFallback({
   telefon: string;
   sdilenyKod: string;
   duvod: string;
+  varianta: KvizVarianta;
 }): Promise<void> {
   const klic = process.env.RESEND_API_KEY;
   if (!klic) {
@@ -363,6 +406,7 @@ async function oznamitFallback({
     "Osobní kupón se nepodařilo založit — host dostal SDÍLENÝ kód.",
     "",
     `Bavič:   ${bavic.kod} — ${bavic.jmeno}`,
+    `Varianta: ${nazevVarianty(varianta)}`,
     `Produkt: ${produkt.nazev} (slug ${produkt.slug}, CS kód ${produkt.kod})`,
     `Lead:    ${jmeno} · ${email} · ${telefon}`,
     `Kód:     ${sdilenyKod}`,
