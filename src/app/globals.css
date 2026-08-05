@@ -6,6 +6,9 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    /* Kotvy v katalogu (34 a 22 položek) — skok bez animace působí jako
+       překreslení stránky; vypíná se níže pro „omezit pohyb“. */
+    scroll-behavior: smooth;
   }
 
   body {
@@ -122,6 +125,81 @@
     @apply dlazdice min-h-[6.5rem] gap-1 p-2.5;
   }
 
+  /* --- Katalogové karty (/sortiment/*) --------------------------------- */
+
+  /* `group` se přidává v JSX — @apply ho neumí (není to utilita). */
+  .karta-produkt {
+    @apply flex flex-col overflow-hidden rounded-3xl border
+           border-white/[0.12] bg-white/[0.07] shadow-karta transition
+           hover:border-mango-400/40 hover:bg-white/[0.11];
+  }
+
+  /* Světlá „police“ pod fotkou. Produktové fotky mají bílé pozadí — na tmavé
+     skleněné kartě z nich byl tvrdý bílý obdélník, který vypadal jako chyba.
+     Krémová plocha je schová do plochy, která působí záměrně. */
+  .police-fotky {
+    @apply relative flex h-56 w-full items-center justify-center overflow-hidden
+           bg-kokos-50 p-4 shadow-[inset_0_-1px_0_rgba(11,32,29,0.12)] sm:h-60 sm:p-5;
+  }
+
+  /* `mix-blend-multiply`: fotky mají bílé/světle šedé pozadí, které i na krémové
+     polici svítilo jako obdélník okolo produktu. Násobením zmizí do police
+     a zůstane jen produkt. */
+  .fotka-produktu {
+    @apply max-h-full max-w-full object-contain mix-blend-multiply transition
+           duration-500 group-hover:scale-[1.03];
+  }
+
+  /* Monogram místo chybějící fotky (19 z 34 položek Longevity Baru).
+     Stejný krémový materiál jako police → obě varianty karty patří do
+     jednoho systému a prázdná dlaždice nevypadá jako rozbitý obrázek. */
+  .monogram {
+    @apply grid h-14 w-14 shrink-0 place-items-center rounded-2xl
+           bg-gradient-to-br from-kokos-50 to-kokos-200 text-2xl font-black
+           leading-none text-laguna-700 shadow-[0_10px_22px_-14px_rgba(4,43,41,0.9)];
+  }
+
+  /* USP jako drobné štítky, ne odrážkový sloupec — zkrátí kartu a text kolem
+     fotky dostane rytmus místo zdi řádků. */
+  .chip-usp {
+    @apply rounded-full border border-white/[0.12] bg-white/[0.06] px-2.5 py-1
+           text-[0.72rem] font-bold leading-tight text-kokos-50/[0.86];
+  }
+
+  .stitek-format {
+    @apply absolute right-3 top-3 rounded-full bg-inkoust/90 px-2.5 py-1
+           text-[0.7rem] font-black tracking-wide text-kokos-50;
+  }
+
+  /* Kategorie opakuje hlavičku sekce, takže drží nejnižší vizuální váhu —
+     slouží jen jako orientace, když člověk skočí do půlky stránky. */
+  .stitek-police {
+    @apply absolute left-3 top-3 rounded-full bg-inkoust/[0.06] px-2 py-0.5
+           text-[0.6rem] font-black uppercase tracking-[0.14em] text-laguna-700/80;
+  }
+
+  /* Kotvicí navigace kategorií — u 34/22 položek je skok na sekci hlavní
+     ovládací prvek, takže zůstává přilepená pod hlavičkou. Pás jde přes celou
+     šířku obsahu, aby pod pilulkou neprosvítaly kusy karet. */
+  .nav-kategorie-obal {
+    @apply sticky top-14 z-20 -mx-4 border-b border-white/10 bg-laguna-900/95
+           px-4 py-2 backdrop-blur-md sm:rounded-full sm:border sm:px-3;
+  }
+
+  /* Na mobilu vodorovný scroller uvnitř pásu, od `sm` splyne s pásem
+     do jediné pilulky s vycentrovanými kotvami. */
+  .nav-kategorie {
+    @apply flex snap-x gap-1.5 overflow-x-auto rounded-full
+           border border-white/[0.12] bg-white/[0.05] p-1.5
+           sm:mx-auto sm:w-fit sm:max-w-full sm:border-0 sm:bg-transparent sm:p-0;
+  }
+
+  .nav-kategorie-polozka {
+    @apply flex min-h-11 shrink-0 snap-start items-center rounded-full px-4
+           text-xs font-black uppercase tracking-wider text-kokos-50/[0.85]
+           transition hover:bg-white/[0.14] hover:text-kokos-50;
+  }
+
   /* Oddělovač skupin v katalogu 66 produktů. */
   .stitek-sekce {
     @apply flex items-center gap-3 pt-1 text-[0.7rem] font-black uppercase
@@ -223,6 +301,10 @@
    Respekt k nastavení „omezit pohyb“
    --------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

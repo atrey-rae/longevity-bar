@@ -28,7 +28,9 @@ const PASSPORTS = [
     title: "Kvíz o Tvém mikrobiomu",
     copy: "Najdi chuťový směr a produkty WILD&COCO, které by tě mohly bavit.",
     number: "02",
-    accent: "from-laguna-400 to-laguna-600",
+    // laguna-400 je na krémový text moc světlá (2,93:1). Tmavší přeliv drží
+    // popisek karty na 4,90:1, tedy nad WCAG AA.
+    accent: "from-laguna-600 to-laguna-800",
     ink: "text-kokos-50",
   },
   {
@@ -69,7 +71,7 @@ export default async function Homepage() {
         <p className="relative text-xs font-black uppercase tracking-[0.22em] text-mango-400">
           Healing Festival · Světlá nad Sázavou
         </p>
-        <h1 className="relative mt-3 max-w-sm text-[2.15rem] leading-[1.04] sm:text-4xl">
+        <h1 className="relative mt-3 max-w-[20rem] text-[2rem] leading-[1.06] sm:text-4xl">
           Vyber si svůj zážitek v Longevity Baru
         </h1>
         <p className="relative mt-4 max-w-sm text-sm leading-relaxed text-kokos-50/[0.78]">
@@ -103,13 +105,13 @@ export default async function Homepage() {
           >
             <span
               aria-hidden
-              className="absolute -bottom-7 -right-1 text-[7.5rem] font-black leading-none opacity-[0.09]"
+              className="absolute -right-2 -top-6 text-[7.5rem] font-black leading-none opacity-[0.09]"
             >
               {item.number}
             </span>
             <span className="relative flex w-full flex-col justify-between gap-5">
               <span>
-                <span className="block text-[0.68rem] font-black uppercase tracking-[0.2em] opacity-[0.65]">
+                <span className="block text-[0.68rem] font-black uppercase tracking-[0.2em] opacity-[0.85]">
                   {item.eyebrow}
                 </span>
                 <span className="mt-1.5 block max-w-[18rem] text-xl font-black leading-tight">
@@ -117,7 +119,7 @@ export default async function Homepage() {
                 </span>
               </span>
               <span className="flex items-end justify-between gap-4">
-                <span className="max-w-[18rem] text-xs font-semibold leading-relaxed opacity-75">
+                <span className="max-w-[18rem] text-xs font-semibold leading-relaxed opacity-90">
                   {item.copy}
                 </span>
                 <span

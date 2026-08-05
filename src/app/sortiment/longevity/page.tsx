@@ -6,6 +6,14 @@ import {
   type CatalogCategory,
 } from "@/lib/catalog-longevity";
 
+import {
+  HlavickaSekce,
+  KotvyKategorii,
+  StitkyUsp,
+  kotva,
+  monogram,
+} from "../_ui";
+
 export const metadata: Metadata = {
   title: "Sortiment Longevity Baru",
   description:
@@ -30,36 +38,28 @@ const CATEGORY_SUBTITLE: Record<CatalogCategory, string> = {
 
 export default function LongevitySortimentPage() {
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-8">
+    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-8 sm:space-y-8">
       <header className="mx-auto max-w-2xl text-center">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-mango-400">
           Longevity Bar · festivalové menu
         </p>
-        <h1 className="mt-3 text-3xl sm:text-4xl">Najdi si, na co máš právě chuť</h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-kokos-50/75">
+        <h1 className="mx-auto mt-3 max-w-md text-3xl sm:text-4xl">
+          Najdi si, na co máš právě chuť
+        </h1>
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-kokos-50/[0.76]">
           Od čerstvé kokosové vody přes výběrovou kávu až po snídaňové bowls.
           Sortiment jsme poskládali tak, aby sis mohl dát rychlé osvěžení i celý
           chuťový rituál.
         </p>
-        <Link href="/" className="mt-5 inline-flex min-h-11 items-center text-sm font-bold text-mango-400 underline decoration-2 underline-offset-4">
+        <Link
+          href="/"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-mango-400 underline decoration-2 underline-offset-4"
+        >
           ← Zpět na rozcestník
         </Link>
       </header>
 
-      <nav
-        aria-label="Kategorie sortimentu"
-        className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0"
-      >
-        {CATEGORY_ORDER.map((category) => (
-          <a
-            key={category}
-            href={`#${categoryId(category)}`}
-            className="min-h-11 shrink-0 snap-start rounded-full border border-white/20 bg-white/10 px-4 py-3 text-xs font-black uppercase tracking-wider text-kokos-50 transition hover:bg-white/20"
-          >
-            {category}
-          </a>
-        ))}
-      </nav>
+      <KotvyKategorii popisek="Kategorie sortimentu" kategorie={CATEGORY_ORDER} />
 
       {CATEGORY_ORDER.map((category) => {
         const items = LONGEVITY_BAR_CATALOG.filter(
@@ -67,22 +67,21 @@ export default function LongevitySortimentPage() {
         );
 
         return (
-          <section key={category} id={categoryId(category)} className="scroll-mt-24 space-y-4">
-            <div className="border-l-4 border-mango-400 pl-4">
-              <h2 className="text-2xl text-kokos-50">{category}</h2>
-              <p className="mt-1 text-sm text-kokos-50/65">
-                {CATEGORY_SUBTITLE[category]}
-              </p>
-            </div>
+          <section
+            key={category}
+            id={kotva(category)}
+            className="scroll-mt-32 space-y-4"
+          >
+            <HlavickaSekce
+              nadpis={category}
+              popis={CATEGORY_SUBTITLE[category]}
+            />
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid items-start gap-4 sm:grid-cols-2">
               {items.map((item) => (
-                <article
-                  key={item.id}
-                  className="overflow-hidden rounded-[1.75rem] border border-white/15 bg-white/[0.09] shadow-karta"
-                >
-                  {item.imageUrl ? (
-                    <div className="flex h-44 items-center justify-center overflow-hidden bg-kokos-100/[0.07] p-4 sm:h-52 sm:p-5">
+                <article key={item.id} className="karta-produkt group">
+                  {item.imageUrl && (
+                    <div className="police-fotky">
                       <img
                         src={item.imageUrl}
                         alt={item.name}
@@ -90,49 +89,42 @@ export default function LongevitySortimentPage() {
                         decoding="async"
                         width={800}
                         height={500}
-                        className="max-h-full max-w-full object-contain transition duration-500 hover:scale-[1.025]"
+                        className="fotka-produktu"
                       />
-                    </div>
-                  ) : (
-                    <div
-                      aria-hidden
-                      className="relative aspect-[16/7] overflow-hidden bg-gradient-to-br from-laguna-500/70 via-laguna-700 to-inkoust"
-                    >
-                      <span className="absolute -bottom-8 -right-2 h-32 w-32 rounded-full border-[20px] border-mango-400/15" />
-                      <span className="absolute left-5 top-5 text-[0.65rem] font-black uppercase tracking-[0.24em] text-mango-300">
-                        WILD&amp;COCO selection
-                      </span>
+                      {item.format && (
+                        <span className="stitek-format">{item.format}</span>
+                      )}
                     </div>
                   )}
 
-                  <div className="space-y-4 p-5">
-                    <div>
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <h3 className="max-w-[18rem] text-xl font-black leading-tight text-kokos-50">
-                          {item.name}
-                        </h3>
-                        {item.format && (
-                          <span className="rounded-full bg-mango-400/15 px-3 py-1 text-xs font-black text-mango-300">
-                            {item.format}
-                          </span>
-                        )}
+                  <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+                    {item.imageUrl ? (
+                      <h3 className="text-lg font-black leading-tight text-kokos-50 sm:text-xl">
+                        {item.name}
+                      </h3>
+                    ) : (
+                      <div className="flex items-start gap-3.5">
+                        <span aria-hidden className="monogram">
+                          {monogram(item.name)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg font-black leading-tight text-kokos-50 sm:text-xl">
+                            {item.name}
+                          </h3>
+                          {item.format && (
+                            <span className="mt-1.5 inline-block rounded-full bg-mango-400/[0.16] px-2.5 py-0.5 text-[0.7rem] font-black text-mango-300">
+                              {item.format}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-3 text-sm leading-relaxed text-kokos-50/78">
-                        {item.description}
-                      </p>
-                    </div>
+                    )}
 
-                    <ul className="space-y-2 border-t border-white/10 pt-4">
-                      {item.usps.map((usp) => (
-                        <li
-                          key={usp}
-                          className="flex gap-2.5 text-sm font-semibold leading-snug text-kokos-50/[0.88]"
-                        >
-                          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rotate-45 bg-mango-400" />
-                          <span>{usp}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-sm leading-relaxed text-kokos-50/[0.78]">
+                      {item.description}
+                    </p>
+
+                    <StitkyUsp usps={item.usps} />
                   </div>
                 </article>
               ))}
@@ -141,24 +133,15 @@ export default function LongevitySortimentPage() {
         );
       })}
 
-      <div className="rounded-[1.75rem] border border-mango-400/35 bg-mango-400/10 p-5 text-center">
+      <div className="rounded-3xl border border-mango-400/35 bg-mango-400/10 p-5 text-center sm:p-6">
         <p className="text-lg font-black">Už máš svého favorita?</p>
-        <p className="mt-1 text-sm text-kokos-50/70">
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-kokos-50/[0.72]">
           Stav se za námi u baru a nech si poradit podle chuti.
         </p>
-        <Link href="/odmeny" className="tlacitko-hlavni mt-4">
+        <Link href="/odmeny" className="tlacitko-hlavni mt-5">
           Otevřít věrnostní kartu
         </Link>
       </div>
     </div>
   );
-}
-
-function categoryId(category: CatalogCategory): string {
-  return category
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }

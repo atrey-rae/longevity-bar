@@ -1,9 +1,10 @@
 # Pokyny pro Claude (platí pro všechny úkoly v tomto projektu)
 
-> ⚠️ **Řízení appky předáno cockpitu ChatGPT (4. 8. 2026)** — viz
-> `tasks/2026-08-04-longevity-bar-handoff-chatgpt/HANDOFF.md`. Claude
-> session zde jedná read-only, nebo jen na explicitní pokyn Atreye
-> (P&COS handoff v2.0.1: 1 task = 1 aktivní orchestrátor).
+> ℹ️ **Řízení: Claude Max (od 5. 8. 2026, pokyn Atreye)** — převzato zpět
+> od ChatGPT/Codex dle `_data/longevity-bar/HANDOFF_CLAUDE_MAX_2026-08-05.md`
+> (kanonický technický handoff; ctít jeho sekci 14 „Co nesmí budoucí Claude
+> omylem vrátit zpět"). Historie: 4. 8. Claude→ChatGPT
+> (`tasks/2026-08-04-longevity-bar-handoff-chatgpt/`), 5. 8. ChatGPT→Claude.
 
 ## Role a delegace
 - Claude (hlavní session) vystupuje jako **vrchní architekt, kontrolor a reviewer**.
