@@ -128,6 +128,7 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     category: "Přídavky",
     description: "Krémový funkční přídavek, který propojuje MCT tuky, houby, ženšen, minerály a vitaminy v jedné lžičce.",
     usps: ["MCT tuky", "Cordyceps a ženšen", "Minerály a vitaminy"],
+    imageUrl: "https://www.wildandcoco.com/temp/img/pr/prirodni-zdroj-energie-w390-h471-ed7450525bf59513b427d42dcaf29e45.jpg",
   },
   {
     id: "cold-brew",
@@ -164,6 +165,7 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     category: "Káva & kakao",
     description: "Minimalistické kakao připravené z čistého kakaového základu a horké vody pro hosty, kteří chtějí ryzí chuť.",
     usps: ["25 g kakaa", "Příprava s horkou vodou", "Hutná, neskrývaná kakaová chuť"],
+    imageUrl: "https://www.wildandcoco.com/temp/img/wi/wild-cacao-ceremony-w390-h471-431b433c3bf78ffa3dc1ee02db073e75.jpg",
   },
   {
     id: "espresso",
@@ -236,6 +238,7 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     format: "40 g",
     description: "Malý čokoládový dezert na špejli, který kombinuje Cocoguard, čoko granolu a čokoládovou vrstvu.",
     usps: ["Cocoguard a čoko granola", "Čokoládová vrstva", "Limitovaná festivalová série"],
+    imageUrl: "/longevity/dortove-lizatko-dubai-coko.jpg",
   },
   {
     id: "pop-strawberry",
@@ -244,6 +247,7 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     format: "40 g",
     description: "Ovocně laděný dezert na špejli s Cocoguardem, jahodovou granolou, kokosem a kešu máslem.",
     usps: ["Cocoguard a jahodová granola", "Kešu máslo a kokos", "Limitovaná festivalová série"],
+    imageUrl: "/longevity/dortove-lizatko-jahoda-kokos.jpg",
   },
   {
     id: "retail-granola",
@@ -279,6 +283,7 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     format: "30 kapslí",
     description: "Kompaktní balení Essential Protein na vyzkoušení nebo na cesty, když nechceš začínat velkým formátem.",
     usps: ["Startovací balení", "Praktické na cesty", "30 kapslí"],
+    imageUrl: "https://www.wildandcoco.com/temp/img/es/essential-protein-30-tablet-w390-h471-c4705556c3ebd54fad049e22e6321eec.jpg",
   },
   {
     id: "retail-probiotika",
