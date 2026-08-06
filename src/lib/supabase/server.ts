@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import type { Database } from "@/lib/types";
+import { SUPABASE_COOKIE_OPTIONS, dlouhodobaCookie } from "./cookies";
 import { supabaseAnonKey, supabaseUrl } from "./env";
 
 type ServerKlient = ReturnType<typeof createServerClient<Database>>;
@@ -15,6 +16,7 @@ export async function createServerSupabase(): Promise<ServerKlient> {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(supabaseUrl(), supabaseAnonKey(), {
+    cookieOptions: SUPABASE_COOKIE_OPTIONS,
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -28,7 +30,7 @@ export async function createServerSupabase(): Promise<ServerKlient> {
       ) {
         try {
           for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+            cookieStore.set(name, value, dlouhodobaCookie(options));
           }
         } catch {
           // Volání ze server komponenty — cookies nelze zapisovat.

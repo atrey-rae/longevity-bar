@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createServerSupabase();
-    await supabase.auth.signOut();
+    // `scope: "local"` odhlásí JEN tohle zařízení. Výchozí "global" zneplatní
+    // refresh tokeny všech zařízení uživatele — na sdíleném telefonu u stánku
+    // by jedno odhlášení vyhodilo člověka i z jeho vlastního mobilu.
+    await supabase.auth.signOut({ scope: "local" });
   } catch {
     // i tak přesměrujeme na přihlášení
   }
