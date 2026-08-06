@@ -15,6 +15,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { cs } from "../src/lib/i18n/cs";
+import { en } from "../src/lib/i18n/en";
 import {
   BAVICI,
   KODY_BEZ_SDILENYCH_KUPONU,
@@ -176,9 +178,20 @@ assert.doesNotMatch(
   /bavic\.kod === PUBLIC_WEB_QUIZ_HOST\.kod/,
   "the guard must not regress to a WEB-only check",
 );
+// Hláška je od 6. 8. 2026 ve slovníku (dvojjazyčnost) — kontroluje se české
+// znění i to, že ji server action pro tenhle případ opravdu vrací.
+assert.match(
+  cs.chyby.osobniKuponSelhal,
+  /^Osobní kupón se nepodařilo vytvořit/,
+  "the Czech wording of that error must stay",
+);
+assert.ok(
+  en.chyby.osobniKuponSelhal.trim().length > 0,
+  "the error must exist in English too",
+);
 assert.match(
   actions,
-  /Osobní kupón se nepodařilo vytvořit/,
+  /return chyba\(t\.chyby\.osobniKuponSelhal\);/,
   "such a failure must return a clear user-facing error",
 );
 const failureGuard = actions.indexOf("duvodFallbacku && !bavic.maSdileneKupony");

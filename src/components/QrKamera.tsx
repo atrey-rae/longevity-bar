@@ -4,35 +4,38 @@ import { useRouter } from "next/navigation";
 import QrScanner from "qr-scanner";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n/types";
 import { parseLoyaltyScanTarget } from "@/lib/scan-url";
 
 const CAMERA_STATE_EVENT = "wc:camera-state";
 
-function cameraErrorMessage(error: unknown, host: string): string {
+function cameraErrorMessage(error: unknown, host: string, t: Dict): string {
   const name = error instanceof DOMException ? error.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return `Kamera je zablokovaná. Povol ji pro ${host} v nastavení prohlížeče a zkus to znovu.`;
+    return t.sken.kameraZablokovana(host);
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-    return "Na tomto zařízení jsme nenašli kameru. Otevři aplikaci na telefonu s kamerou.";
+    return t.sken.kameraChybi;
   }
-  return "Kameru se nepodařilo spustit. Zkontroluj její povolení a zkus to znovu.";
+  return t.sken.kameraObecnaChyba;
 }
 
-function invalidQrMessage(raw: string, currentOrigin: string): string {
+function invalidQrMessage(raw: string, currentOrigin: string, t: Dict): string {
   try {
     const scanned = new URL(raw.trim());
     const current = new URL(currentOrigin);
     if (scanned.origin !== current.origin && /^\/scan\/[^/]+$/.test(scanned.pathname)) {
-      return `QR je pro jinou adresu (${scanned.host}). Otevři aplikaci na stejné adrese jako QR.`;
+      return t.sken.jinaAdresa(scanned.host);
     }
   } catch {
     // Obecná hláška níže pokrývá text, který není URL.
   }
-  return "Tohle není platný QR kód Longevity Baru. Zkus jiný kód.";
+  return t.sken.neplatnyKod;
 }
 
 export default function QrKamera() {
+  const t = useT();
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -77,14 +80,14 @@ export default function QrKamera() {
         if (!target) {
           if (lastRejectedRef.current !== data) {
             lastRejectedRef.current = data;
-            setMessage(invalidQrMessage(data, window.location.origin));
+            setMessage(invalidQrMessage(data, window.location.origin, t));
           }
           return;
         }
 
         navigatingRef.current = true;
         stopCamera();
-        setMessage("QR načten — ověřujeme razítko…");
+        setMessage(t.sken.nacteno);
         router.push(target);
       },
       {
@@ -106,7 +109,7 @@ export default function QrKamera() {
         if (cancelled) return;
         stopCamera();
         setStarting(false);
-        setMessage(cameraErrorMessage(error, window.location.host));
+        setMessage(cameraErrorMessage(error, window.location.host, t));
       });
 
     const stopWhenHidden = () => {
@@ -122,7 +125,7 @@ export default function QrKamera() {
       window.removeEventListener("pagehide", stopOnPageHide);
       stopCamera();
     };
-  }, [close, open, router, stopCamera]);
+  }, [close, open, router, stopCamera, t]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(CAMERA_STATE_EVENT, { detail: { open } }));
@@ -144,7 +147,7 @@ export default function QrKamera() {
   return (
     <>
       <button type="button" className="tlacitko-hlavni" onClick={() => setOpen(true)}>
-        <span aria-hidden>▣</span> Naskenovat QR kód
+        <span aria-hidden>▣</span> {t.sken.naskenovat}
       </button>
 
       {open && (
@@ -171,9 +174,9 @@ export default function QrKamera() {
           <section className="w-full max-w-md rounded-3xl bg-kokos-50 p-4 text-inkoust shadow-karta">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 id="qr-kamera-title">Naskenuj QR u pokladny</h2>
+                <h2 id="qr-kamera-title">{t.sken.dialogNadpis}</h2>
                 <p className="mt-1 text-sm text-inkoust/70">
-                  Namiř živou kameru na celý kód. Fotku z galerie vybrat nejde.
+                  {t.sken.dialogPopis}
                 </p>
               </div>
               <button
@@ -181,7 +184,7 @@ export default function QrKamera() {
                 type="button"
                 onClick={close}
                 className="grid min-h-11 min-w-11 place-items-center rounded-full bg-inkoust/10 text-xl font-black"
-                aria-label="Zavřít kameru"
+                aria-label={t.sken.zavritKameru}
               >
                 ×
               </button>
@@ -193,11 +196,11 @@ export default function QrKamera() {
                 className="h-full w-full object-cover"
                 playsInline
                 muted
-                aria-label="Živý obraz zadní kamery"
+                aria-label={t.sken.zivyObraz}
               />
               {starting && (
                 <div className="absolute inset-0 grid place-items-center bg-black/60 px-5 text-center font-bold text-white">
-                  Spouštíme kameru…
+                  {t.sken.spoustime}
                 </div>
               )}
             </div>
@@ -210,7 +213,7 @@ export default function QrKamera() {
               {message}
             </p>
             <button ref={bottomCloseRef} type="button" className="tlacitko-vedlejsi mt-2 !border-inkoust/20 !text-inkoust" onClick={close}>
-              Zavřít
+              {t.spolecne.zavrit}
             </button>
           </section>
         </div>

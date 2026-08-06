@@ -6,19 +6,15 @@ import { useActionState, useState } from "react";
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
 import KatalogVyber from "@/components/KatalogVyber";
 import Konfety from "@/components/Konfety";
+import { useLang, useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n/types";
 import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
-  HOOK,
-  OBLIBENY_TEXT,
   OTAZKA_1,
-  OTAZKA_1_TEXT,
   OTAZKA_2,
-  OTAZKA_2_TEXT,
   OTAZKA_3,
-  OTAZKA_3_TEXT,
   PRODUKTY,
-  SLEVA_PROCENT,
   doporucitProdukty,
   type Bavic,
   type KvizProdukt,
@@ -38,10 +34,16 @@ const PREDCHOZI: Record<Exclude<Krok, "uvod">, Krok> = {
   formular: "vyber",
 };
 
+const POCET_OTAZEK = 3;
+
 /**
  * Kvíz „Odemkni potenciál svého mikrobiomu“ — tři klepnutí, výběr produktu,
  * kontakt, kupón. Celý stav žije v prohlížeči; server se volá až při odeslání
  * kontaktu.
+ *
+ * Otázky a odpovědi se berou ze slovníku (`t.kviz.q1…q3`), zatímco `hodnota`
+ * odpovědi zůstává z `lib/kviz.ts` — doporučovací logika je tak na jazyku
+ * nezávislá a kontrolní skripty ji dál testují nad českými konstantami.
  */
 export default function KvizFlow({
   bavic,
@@ -51,6 +53,8 @@ export default function KvizFlow({
   /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
   referralKod?: string | null;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [krok, setKrok] = useState<Krok>("uvod");
   const [q1, setQ1] = useState<OdpovedQ1 | null>(null);
   const [q2, setQ2] = useState<OdpovedQ2 | null>(null);
@@ -93,11 +97,11 @@ export default function KvizFlow({
     setKrok(PREDCHOZI[krok as Exclude<Krok, "uvod">]);
   }
 
-  if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} />;
+  if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} t={t} />;
 
   return (
     <div className="space-y-5">
-      {krok !== "uvod" && <Hlavicka krok={krok} zpet={zpet} />}
+      {krok !== "uvod" && <Hlavicka krok={krok} zpet={zpet} t={t} />}
 
       {krok === "uvod" && (
         <section className="flex min-h-[62vh] flex-col justify-center space-y-6 text-center">
@@ -109,12 +113,12 @@ export default function KvizFlow({
           </div>
           <div>
             <h1 className="text-stin">
-              Odemkni potenciál
+              {t.kviz.uvodNadpisPred}
               <br />
-              <span className="text-mango-400">svého mikrobiomu!</span>
+              <span className="text-mango-400">{t.kviz.uvodNadpisPo}</span>
             </h1>
             <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
-              {sazba(HOOK)}
+              {sazba(t.kviz.hook)}
             </p>
           </div>
           <div className="space-y-3">
@@ -123,47 +127,53 @@ export default function KvizFlow({
               onClick={() => setKrok("q1")}
               className="tlacitko-hlavni"
             >
-              Odemknout →
+              {t.kviz.odemknout}
             </button>
             <p className="text-sm text-kokos-50/70">
-              Posílá tě{" "}
+              {t.kviz.posilaTePred}{" "}
               <strong className="font-bold text-mango-400">{bavic.jmeno}</strong>{" "}
-              z Longevity Baru.
+              {t.kviz.posilaTePo}
             </p>
           </div>
         </section>
       )}
 
       {krok === "q1" && (
-        <Otazka text={OTAZKA_1_TEXT}>
+        <Otazka text={t.kviz.q1.text}>
           <Volby
             moznosti={OTAZKA_1}
+            popisky={t.kviz.q1.moznosti}
             vybrat={(h) => {
               setQ1(h);
               setKrok("q2");
             }}
           />
-          <OblibenaZkratka vybrat={vybratOblibeny} />
+          <OblibenaZkratka vybrat={vybratOblibeny} t={t} />
         </Otazka>
       )}
 
       {krok === "q2" && (
-        <Otazka text={OTAZKA_2_TEXT}>
+        <Otazka text={t.kviz.q2.text}>
           <Volby
             moznosti={OTAZKA_2}
+            popisky={t.kviz.q2.moznosti}
             vybrat={(h) => {
               setQ2(h);
               setKrok("q3");
             }}
           />
-          <OblibenaZkratka vybrat={vybratOblibeny} />
+          <OblibenaZkratka vybrat={vybratOblibeny} t={t} />
         </Otazka>
       )}
 
       {krok === "q3" && (
-        <Otazka text={OTAZKA_3_TEXT}>
-          <Volby moznosti={OTAZKA_3} vybrat={odpovedetQ3} />
-          <OblibenaZkratka vybrat={vybratOblibeny} />
+        <Otazka text={t.kviz.q3.text}>
+          <Volby
+            moznosti={OTAZKA_3}
+            popisky={t.kviz.q3.moznosti}
+            vybrat={odpovedetQ3}
+          />
+          <OblibenaZkratka vybrat={vybratOblibeny} t={t} />
         </Otazka>
       )}
 
@@ -180,20 +190,19 @@ export default function KvizFlow({
             </div>
             <h1 className="text-stin">
               {oblibeny
-                ? "Tvůj oblíbený produkt"
-                : "Tohle tvůj mikrobiom miluje"}
+                ? t.kviz.vyberOblibenyNadpis
+                : t.kviz.vyberDoporuceneNadpis}
             </h1>
             <p className="mx-auto max-w-[20rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
               {oblibeny ? (
-                <>
-                  Najdi ten svůj — na který produkt chceš mít až do konce roku
-                  slevu {SLEVA_PROCENT}&nbsp;%?
-                </>
+                sazba(t.kviz.vyberOblibenyPopis)
               ) : (
                 <>
-                  Odemkni jeho potenciál každé ráno. Vyber si{" "}
-                  <strong className="text-mango-400">jeden produkt</strong> — na
-                  něj dostaneš kupón {SLEVA_PROCENT}&nbsp;%.
+                  {t.kviz.vyberDoporucenePopisPred}{" "}
+                  <strong className="text-mango-400">
+                    {t.kviz.vyberJedenProdukt}
+                  </strong>{" "}
+                  {sazba(t.kviz.vyberDoporucenePopisPo)}
                 </>
               )}
             </p>
@@ -219,7 +228,7 @@ export default function KvizFlow({
           )}
 
           <p className="text-center text-xs leading-relaxed text-kokos-50/70">
-            Kupón platí na e-shopu wildandcoco.com, ne u stánku.
+            {t.kviz.kuponPlatiVEshopu}
           </p>
         </section>
       )}
@@ -233,9 +242,9 @@ export default function KvizFlow({
                 {produkt.emoji}
               </span>
             </div>
-            <h1 className="mt-1 text-stin">Kam ti kupón pošleme?</h1>
+            <h1 className="mt-1 text-stin">{t.kviz.formularNadpis}</h1>
             <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
-              {SLEVA_PROCENT}&nbsp;% na{" "}
+              {sazba(t.kviz.formularSlevaPred)}{" "}
               <strong className="text-mango-400">{produkt.nazev}</strong>
             </p>
             <button
@@ -245,7 +254,7 @@ export default function KvizFlow({
                          text-kokos-50/70 underline decoration-white/30 underline-offset-4
                          transition hover:text-kokos-50 hover:decoration-mango-400"
             >
-              Změnit produkt
+              {t.kviz.zmenitProdukt}
             </button>
           </div>
 
@@ -253,6 +262,8 @@ export default function KvizFlow({
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
             <input type="hidden" name="quiz_variant" value="microbiom" />
+            {/* Jazyk kupónového e-mailu = jazyk, ve kterém host kvíz vyplnil. */}
+            <input type="hidden" name="lang" value={lang} />
             {referralKod && (
               <input type="hidden" name="od" value={referralKod} />
             )}
@@ -263,7 +274,7 @@ export default function KvizFlow({
               onChange={(e) => setJmeno(e.target.value)}
               required
               maxLength={80}
-              placeholder="Křestní jméno"
+              placeholder={t.spolecne.krestniJmeno}
               autoComplete="given-name"
               className="vstup"
             />
@@ -275,7 +286,7 @@ export default function KvizFlow({
               type="email"
               inputMode="email"
               maxLength={160}
-              placeholder="E-mail"
+              placeholder={t.spolecne.email}
               autoComplete="email"
               className="vstup"
             />
@@ -286,7 +297,7 @@ export default function KvizFlow({
               required
               type="tel"
               inputMode="tel"
-              placeholder="Telefon (např. 601 123 456)"
+              placeholder={t.spolecne.telefonPlaceholder}
               autoComplete="tel"
               className="vstup"
             />
@@ -296,7 +307,7 @@ export default function KvizFlow({
               disabled={ceka}
               className="tlacitko-hlavni mt-1 disabled:opacity-70"
             >
-              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
+              {ceka ? t.kviz.posilam : t.kviz.chciKupon}
             </button>
 
             {vysledek?.stav === "chyba" && (
@@ -309,10 +320,7 @@ export default function KvizFlow({
             )}
 
             <p className="px-1 text-center text-[0.6875rem] leading-relaxed text-kokos-50/80">
-              Kontakt použijeme na poslání kupónu a Longevity tipů od
-              WILD&amp;COCO nejdéle do 31.&nbsp;12.&nbsp;2026 (max. 6 zpráv).
-              Souhlas můžeš kdykoli odvolat, detaily v Pravidlech níže.
-              Odpovědi z kvízu si neukládáme.
+              {sazba(t.kviz.souhlas)}
             </p>
           </form>
         </section>
@@ -356,7 +364,15 @@ function MrizkaProduktu({
   );
 }
 
-function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
+function Hlavicka({
+  krok,
+  zpet,
+  t,
+}: {
+  krok: Krok;
+  zpet: () => void;
+  t: Dict;
+}) {
   const cislo = CISLO_OTAZKY[krok];
   return (
     <div className="flex items-center justify-between gap-3">
@@ -366,12 +382,12 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
         className="-ml-2 flex min-h-[2.5rem] items-center rounded-full px-2 text-sm
                    font-semibold text-kokos-50/80 transition hover:bg-white/10 hover:text-kokos-50"
       >
-        ← Zpět
+        {t.spolecne.zpet}
       </button>
       {cislo ? (
         <span className="flex items-center gap-2.5">
           <span className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-kokos-50/60">
-            Otázka {cislo} ze 3
+            {t.kviz.otazkaZe(cislo, POCET_OTAZEK)}
           </span>
           <span className="flex gap-1" aria-hidden>
             {[1, 2, 3].map((i) => (
@@ -387,7 +403,7 @@ function Hlavicka({ krok, zpet }: { krok: Krok; zpet: () => void }) {
         </span>
       ) : (
         <span className="odznak bg-mango-400/15 text-[0.7rem] tracking-[0.16em] text-mango-400">
-          Odemčeno 🔓
+          {t.kviz.odemceno}
         </span>
       )}
     </div>
@@ -410,14 +426,14 @@ function Otazka({
 }
 
 /** Odbočka mimo otázky — graficky odlišená od běžných odpovědí. */
-function OblibenaZkratka({ vybrat }: { vybrat: () => void }) {
+function OblibenaZkratka({ vybrat, t }: { vybrat: () => void; t: Dict }) {
   return (
     <div className="space-y-3 pt-1">
       <p
         className="text-center text-xs font-bold uppercase tracking-widest text-kokos-50/50"
         aria-hidden
       >
-        — nebo —
+        {t.kviz.nebo}
       </p>
       <button
         type="button"
@@ -427,7 +443,7 @@ function OblibenaZkratka({ vybrat }: { vybrat: () => void }) {
         <span className="text-2xl" aria-hidden>
           💛
         </span>
-        <span className="leading-tight">{OBLIBENY_TEXT}</span>
+        <span className="leading-tight">{t.kviz.oblibeny}</span>
       </button>
     </div>
   );
@@ -435,9 +451,12 @@ function OblibenaZkratka({ vybrat }: { vybrat: () => void }) {
 
 function Volby<T extends string>({
   moznosti,
+  popisky,
   vybrat,
 }: {
   moznosti: Moznost<T>[];
+  /** Texty odpovědí ve zvoleném jazyce, klíčované hodnotou odpovědi. */
+  popisky: Record<T, string>;
   vybrat: (hodnota: T) => void;
 }) {
   return (
@@ -452,7 +471,7 @@ function Volby<T extends string>({
           <span className="volba-ikona" aria-hidden>
             {m.emoji}
           </span>
-          <span className="flex-1">{m.text}</span>
+          <span className="flex-1">{popisky[m.hodnota]}</span>
           <span className="pr-1 text-2xl leading-none text-mango-400" aria-hidden>
             ›
           </span>
@@ -464,8 +483,10 @@ function Volby<T extends string>({
 
 function Vyhra({
   vysledek,
+  t,
 }: {
   vysledek: Extract<VysledekKuponu, { stav: "ok" }>;
+  t: Dict;
 }) {
   return (
     <div className="space-y-5">
@@ -478,9 +499,9 @@ function Vyhra({
             {vysledek.emoji}
           </span>
         </div>
-        <h1 className="mt-1 text-stin">Máš to! 🎉</h1>
+        <h1 className="mt-1 text-stin">{t.kviz.vyhraNadpis}</h1>
         <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
-          Kupón {SLEVA_PROCENT}&nbsp;% na{" "}
+          {sazba(t.kviz.vyhraKuponPred)}{" "}
           <strong className="text-mango-400">{vysledek.produkt}</strong>
         </p>
       </div>
@@ -488,7 +509,7 @@ function Vyhra({
       {/* Kupón = hrdina obrazovky: dostane rám i vlastní stín. */}
       <div className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 px-4 py-5 text-center shadow-[0_20px_44px_-20px_rgba(255,107,53,0.85)]">
         <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-inkoust/75">
-          Kód kupónu
+          {t.kviz.kodKuponu}
         </p>
         <p className="kod-kuponu mt-2 text-[1.6rem] font-black leading-tight text-inkoust">
           {vysledek.kod}
@@ -499,33 +520,33 @@ function Vyhra({
         href={ESHOP_URL}
         className="tlacitko-zapad text-[0.9375rem] tracking-[0.03em]"
       >
-        Nakoupit na wildandcoco.com
+        {t.kviz.nakoupit}
       </a>
 
       {/* Kvíz vyžaduje telefonní login, takže tady už je návštěvník přihlášený
           — účet mu vznikl cestou. Sekundární CTA ho pustí rovnou do appky
           (rozcestník), místo aby QR kód baviče končil slepou uličkou. */}
       <Link href="/" className="tlacitko-vedlejsi text-[0.9375rem] tracking-[0.03em]">
-        Pokračovat do Longevity Bar appky →
+        {t.kviz.pokracovatDoAppky}
       </Link>
 
       <div className="karta space-y-2.5 text-center text-sm leading-relaxed text-kokos-50/90">
         <p>
           {vysledek.emailOdeslan ? (
             <>
-              Kupón ti letí i na{" "}
+              {t.kviz.emailOdeslanPred}{" "}
               <strong className="break-words font-bold text-mango-300">
                 {vysledek.email}
               </strong>{" "}
-              — mrkni i do spamu.
+              {t.kviz.emailOdeslanPo}
             </>
           ) : (
             <>
-              E-mail se nám teď nepodařilo odeslat — kód si prosím{" "}
+              {t.kviz.emailNeodeslanPred}{" "}
               <strong className="font-bold text-mango-300">
-                vyfoť nebo opiš
+                {t.kviz.emailNeodeslanZvyraznene}
               </strong>
-              .
+              {t.kviz.emailNeodeslanPo}
             </>
           )}
         </p>

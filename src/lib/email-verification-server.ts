@@ -1,10 +1,36 @@
+import { getDict } from "@/lib/i18n";
+import { DEFAULT_LANG, type Lang } from "@/lib/i18n/lang";
+import { getLang } from "@/lib/i18n/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashSecret, newEmailToken } from "@/lib/phone-auth-server";
 import { isInternalAuthEmail, isValidEmail } from "@/lib/phone-auth";
 
 const RESEND_AFTER_MS = 10 * 60 * 1000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-const CONFIRMATION_TEXT = "Ahoj! Vítej ve věrnostním programu Longevity baru. Jsi ready na naše odměny? Pokud ano, aktivuj svůj účet zde.";
+
+/**
+ * Jazyk requestu, ale nikdy za cenu výjimky: `cookies()` mimo request scope
+ * hodí, a aktivační e-mail se posílá i z guardu nad odměnami. Fallback na
+ * češtinu je horší text, ne rozbitý e-mail.
+ */
+async function jazykRequestu(): Promise<Lang> {
+  try {
+    return await getLang();
+  } catch {
+    return DEFAULT_LANG;
+  }
+}
+
+/**
+ * Rozdělí větu na části kolem POSLEDNÍHO výskytu slova, ze kterého se dělá
+ * odkaz („zde“ / „here“). Poslední výskyt schválně: v angličtině se „here“
+ * může objevit i dřív ve větě a odkaz patří na její konec.
+ */
+function kolemOdkazu(veta: string, slovo: string): [string, string] {
+  const i = veta.lastIndexOf(slovo);
+  if (i < 0) return [veta, ""];
+  return [veta.slice(0, i), veta.slice(i + slovo.length)];
+}
 
 export type EmailStatus = {
   email: string | null;
@@ -23,26 +49,35 @@ export async function getEmailStatus(userId: string): Promise<EmailStatus> {
   };
 }
 
-async function sendViaResend(email: string, activationUrl: string): Promise<boolean> {
+async function sendViaResend(
+  email: string,
+  activationUrl: string,
+  lang: Lang,
+): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
+  const t = getDict(lang);
+  const slovo = t.email.aktivaceOdkazSlovo;
+  const [pred, po] = kolemOdkazu(t.email.aktivaceTelo, slovo);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({
       from: process.env.RESEND_FROM || "Longevity Bar <no-reply@wildandcoco.com>",
       to: [email],
-      subject: "Aktivuj si odměny v Longevity Baru",
-      text: CONFIRMATION_TEXT.replace("zde", activationUrl),
-      html: `<p>Ahoj! Vítej ve věrnostním programu Longevity baru. Jsi ready na naše odměny? Pokud ano, aktivuj svůj účet <a href="${activationUrl}">zde</a>.</p>`,
+      subject: t.email.aktivacePredmet,
+      text: `${pred}${activationUrl}${po}`,
+      html: `<p>${pred}<a href="${activationUrl}">${slovo}</a>${po}</p>`,
     }),
   });
   return response.ok;
 }
 
 export async function sendActivationEmail(userId: string, rawEmail: string): Promise<{ accepted: boolean; throttled?: boolean }> {
+  const lang = await jazykRequestu();
+  const t = getDict(lang);
   const email = rawEmail.trim().toLowerCase();
-  if (!isValidEmail(email) || isInternalAuthEmail(email)) throw new TypeError("Zadej platný e-mail.");
+  if (!isValidEmail(email) || isInternalAuthEmail(email)) throw new TypeError(t.chyby.zadejPlatnyEmail);
   const admin = createAdminClient();
   const status = await getEmailStatus(userId);
   const lastSent = status.lastSentAt ? Date.parse(status.lastSentAt) : 0;
@@ -83,17 +118,17 @@ export async function sendActivationEmail(userId: string, rawEmail: string): Pro
   }).select("id").single();
   if (inserted.error || !inserted.data) {
     await admin.from("profiles").update({ last_activation_email_at: status.lastSentAt }).eq("id", userId).eq("last_activation_email_at", now.toISOString());
-    throw new Error("Aktivační e-mail se nepodařilo připravit.");
+    throw new Error(t.chyby.aktivacniEmailNepripraven);
   }
 
   const base = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
-  const sent = await sendViaResend(email, `${base}/aktivovat-email?token=${encodeURIComponent(token)}`).catch(() => false);
+  const sent = await sendViaResend(email, `${base}/aktivovat-email?token=${encodeURIComponent(token)}`, lang).catch(() => false);
   if (!sent) {
     await Promise.all([
       admin.from("email_activation_tokens").update({ consumed_at: new Date().toISOString() }).eq("id", inserted.data.id),
       admin.from("profiles").update({ last_activation_email_at: status.lastSentAt }).eq("id", userId).eq("last_activation_email_at", now.toISOString()),
     ]);
-    throw new Error("Aktivační e-mail se nepodařilo odeslat.");
+    throw new Error(t.chyby.aktivacniEmailNeodeslan);
   }
   return { accepted: true };
 }

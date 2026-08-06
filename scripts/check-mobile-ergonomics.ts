@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { cs } from "../src/lib/i18n/cs";
+import { en } from "../src/lib/i18n/en";
 import { parseLoyaltyScanTarget } from "../src/lib/scan-url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -53,8 +55,15 @@ for (const forbidden of [
   ok(!forbidden.test(guardedSources), `zdrojový strom nesmí obsahovat ${forbidden}`);
 }
 ok(!/clipboard/i.test(scanner), "QR skener nesmí číst schránku");
+// Popisky bydlí od 6. 8. 2026 ve slovníku (`lib/i18n/cs.ts`), ne v komponentě.
+// Kontroluje se proto obojí: že české znění zůstalo doslova stejné a že ho
+// komponenta opravdu bere ze slovníku.
+ok(
+  cs.sken.naskenovat === "Naskenovat QR kód",
+  "české znění tlačítka skeneru se nesmí měnit",
+);
 for (const required of [
-  "Naskenovat QR kód",
+  "t.sken.naskenovat",
   'preferredCamera: "environment"',
   'document.addEventListener("visibilitychange"',
   'window.addEventListener("pagehide"',
@@ -71,13 +80,21 @@ const installer = fs.readFileSync(
   path.join(root, "src/components/InstallPrompt.tsx"),
   "utf8",
 );
+ok(
+  cs.instalace.uzMamNaPlose === "Už mám na ploše",
+  "české znění potvrzení instalace se nesmí měnit",
+);
+ok(
+  cs.instalace.iosPridatNaPlochu === "Přidat na plochu",
+  "české znění návodu na plochu se nesmí měnit",
+);
 for (const required of [
   'matchMedia("(display-mode: standalone)")',
   'window.addEventListener("beforeinstallprompt"',
   'window.addEventListener("appinstalled"',
   "24 * 60 * 60 * 1000",
-  "Už mám na ploše",
-  "Přidat na plochu",
+  "t.instalace.uzMamNaPlose",
+  "t.instalace.iosPridatNaPlochu",
 ]) {
   ok(installer.includes(required), `instalátoru chybí ${required}`);
 }
@@ -125,15 +142,33 @@ const login = fs.readFileSync(
   path.join(root, "src/app/prihlaseni/page.tsx"),
   "utf8",
 );
+// Text přihlášení je ve slovníku; hlídá se jeho znění i to, že ho stránka
+// bere odtamtud. Slib razítka před validací dne se nesmí vrátit v ŽÁDNÉ
+// jazykové mutaci.
+for (const [jazyk, podnadpis] of [
+  ["cs", cs.prihlaseni.podnadpisSken],
+  ["en", en.prihlaseni.podnadpisSken],
+] as const) {
+  ok(
+    !/hned připíšeme razítko|add the stamp right away/i.test(podnadpis),
+    `login (${jazyk}) nesmí slibovat razítko před validací dne`,
+  );
+}
 ok(
-  !login.includes("po přihlášení ti hned připíšeme razítko"),
-  "login nesmí slibovat razítko před validací dne",
-);
-ok(
-  login.includes("pokud je QR kód platný právě dnes"),
+  cs.prihlaseni.podnadpisSken.includes("pokud je QR kód platný právě dnes"),
   "login musí vysvětlit denní validaci",
 );
+ok(
+  en.prihlaseni.podnadpisSken.includes("valid today"),
+  "anglický login musí vysvětlit denní validaci taky",
+);
+ok(
+  login.includes("t.prihlaseni.podnadpisSken"),
+  "login musí brát text ze slovníku",
+);
 
-const EXPECTED_CHECKS = 40 + (manifest.icons?.length ?? 0);
+// 40 původních + 6 nových kolem dvojjazyčnosti (znění ve slovníku a jeho
+// zapojení v komponentách skeneru, instalace a přihlášení).
+const EXPECTED_CHECKS = 46 + (manifest.icons?.length ?? 0);
 if (checks !== EXPECTED_CHECKS) throw new Error(`čekali jsme ${EXPECTED_CHECKS} kontrol, proběhlo ${checks}`);
 console.log(`✓ check-mobile-ergonomics: ${checks}/${EXPECTED_CHECKS} kontrol OK`);

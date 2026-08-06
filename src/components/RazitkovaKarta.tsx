@@ -1,15 +1,17 @@
+import { getT } from "@/lib/i18n/server";
 import { STAMPS_PER_TIER } from "@/lib/loyalty";
 
 /**
  * Věrnostní karta — 4 velká políčka na razítka.
  */
-export default function RazitkovaKarta({
+export default async function RazitkovaKarta({
   zaplneno,
   zvyraznitPosledni = false,
 }: {
   zaplneno: number;
   zvyraznitPosledni?: boolean;
 }) {
+  const { t } = await getT();
   const policka = Array.from({ length: STAMPS_PER_TIER }, (_, i) => i);
 
   return (
@@ -28,7 +30,9 @@ export default function RazitkovaKarta({
                 : "border-dashed border-white/25 bg-white/5",
             ].join(" ")}
             aria-label={
-              plne ? `Razítko ${i + 1} získáno` : `Volné políčko ${i + 1}`
+              plne
+                ? t.vernost.razitkoZiskano(i + 1)
+                : t.vernost.volnePolicko(i + 1)
             }
           >
             {plne ? (

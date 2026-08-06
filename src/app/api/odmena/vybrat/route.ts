@@ -1,26 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getT } from "@/lib/i18n/server";
 import { selectRewardProduct } from "@/lib/loyalty-server";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
-
-const ZPRAVY: Record<string, string> = {
-  email_unverified: "Nejdřív potvrď svůj e-mail. Poslali jsme ti nový ověřovací e-mail, pokud od posledního uběhlo alespoň 10 minut.",
-  no_reward: "Zatím nemáš nárok na odměnu.",
-  bad_product: "Tenhle produkt teď nejde vybrat — nejspíš je vyprodaný.",
-  error: "Výběr se nepodařil, zkus to prosím znovu.",
-};
 
 /**
  * Výběr produktu k odměně. Veškerá validace (existence odměny, správná
  * kategorie, aktivní produkt) probíhá na serveru přes service-role klienta.
  */
 export async function POST(request: NextRequest) {
+  // Jazyk hlášek se bere z cookie `lang` requestu — stejný zdroj jako stránky.
+  const { t } = await getT();
+  const ZPRAVY: Record<string, string> = {
+    ...t.chyby.odmena,
+    error: t.chyby.vyberSelhal,
+  };
+
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json(
-      { status: "unauthorized", zprava: "Nejsi přihlášený." },
+      { status: "unauthorized", zprava: t.chyby.neprihlasen },
       { status: 401 },
     );
   }

@@ -6,24 +6,17 @@ import { useActionState, useState } from "react";
 import { odeslatKvizLead, type VysledekKuponu } from "@/app/kviz/actions";
 import KatalogVyber from "@/components/KatalogVyber";
 import Konfety from "@/components/Konfety";
+import { useLang, useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n/types";
 import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
   PRODUKTY,
-  SLEVA_PROCENT,
   type Bavic,
   type KvizProdukt,
 } from "@/lib/kviz";
+import { PROFIL_OTAZKY, PROFILY, vyhodnotitProfil } from "@/lib/kviz-profil";
 import {
-  PROFIL_DISCLAIMER,
-  PROFIL_HOOK,
-  PROFIL_OTAZKY,
-  PROFILY,
-  vyhodnotitProfil,
-  type ProfilMoznost,
-} from "@/lib/kviz-profil";
-import {
-  VYHODNOCENI_TEXTY,
   sestavitVyhodnoceni,
   type Postreh,
   type Vyhodnoceni,
@@ -43,7 +36,8 @@ const POCET_OTAZEK = PROFIL_OTAZKY.length;
  * sortimentu (`KatalogVyber`), kde by se 66 dlaždic opisovalo zbytečně.
  *
  * Odpovědi ani skóre neopouštějí prohlížeč — na server jde jen varianta kvízu,
- * vybraný produkt a kontakt. Vyhodnocení se skládá lokálně z čisté funkce.
+ * vybraný produkt a kontakt. Vyhodnocení se skládá lokálně z čisté funkce,
+ * které se předává jen jazyk rozhraní.
  */
 export default function KvizFlowProfil({
   bavic,
@@ -53,6 +47,8 @@ export default function KvizFlowProfil({
   /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
   referralKod?: string | null;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [faze, setFaze] = useState<Faze>("uvod");
   const [krok, setKrok] = useState(0);
   const [odpovedi, setOdpovedi] = useState<number[]>([]);
@@ -82,17 +78,17 @@ export default function KvizFlowProfil({
       return;
     }
 
-    const vysledek = vyhodnotitProfil(dalsi);
-    const text = sestavitVyhodnoceni(dalsi);
+    const vysledekProfilu = vyhodnotitProfil(dalsi);
+    const text = sestavitVyhodnoceni(dalsi, lang);
     // Prázdný výsledek by znamenal chybu v matici — radši zpět na první otázku
     // než výsledková obrazovka bez produktů nebo bez textu.
-    if (vysledek.produkty.length === 0 || !text) {
+    if (vysledekProfilu.produkty.length === 0 || !text) {
       setOdpovedi([]);
       setKrok(0);
       return;
     }
-    setProfily(vysledek.profilId);
-    setDoporucene(vysledek.produkty);
+    setProfily(vysledekProfilu.profilId);
+    setDoporucene(vysledekProfilu.produkty);
     setVyhodnoceni(text);
     setFaze("vyhodnoceni");
   }
@@ -108,14 +104,16 @@ export default function KvizFlowProfil({
     setKrok(krok - 1);
   }
 
-  if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} />;
+  if (vysledek?.stav === "ok") return <Vyhra vysledek={vysledek} t={t} />;
 
-  const nazvyProfilu = PROFILY.filter((p) => profily.includes(p.id)).map((p) => p.nazev);
+  const nazvyProfilu = PROFILY.filter((p) => profily.includes(p.id)).map(
+    (p) => t.kvizProfil.profily[p.id] ?? p.nazev,
+  );
 
   return (
     <div className="space-y-5">
       {faze !== "uvod" && (
-        <Hlavicka cislo={faze === "otazky" ? krok + 1 : null} zpet={zpet} />
+        <Hlavicka cislo={faze === "otazky" ? krok + 1 : null} zpet={zpet} t={t} />
       )}
 
       {faze === "uvod" && (
@@ -128,25 +126,27 @@ export default function KvizFlowProfil({
           </div>
           <div>
             <h1 className="text-stin">
-              Najdi si svou
+              {t.kvizProfil.uvodNadpisPred}
               <br />
-              <span className="text-mango-400">WILD&amp;COCO rutinu</span>
+              <span className="text-mango-400">
+                {t.kvizProfil.uvodNadpisPo}
+              </span>
             </h1>
             <p className="mx-auto mt-3 max-w-[19rem] text-[1.0625rem] font-bold leading-relaxed text-mango-400">
-              {VYHODNOCENI_TEXTY.uvodniOtazka}
+              {t.kvizProfil.vyhodnoceni.uvodniOtazka}
             </p>
             <p className="mx-auto mt-2 max-w-[19rem] text-[1.0625rem] leading-relaxed text-kokos-50/85">
-              {sazba(PROFIL_HOOK)}
+              {sazba(t.kvizProfil.hook)}
             </p>
           </div>
           <div className="space-y-3">
             <button type="button" onClick={() => setFaze("otazky")} className="tlacitko-hlavni">
-              Jdeme na to →
+              {t.kvizProfil.jdemeNaTo}
             </button>
             <p className="text-sm text-kokos-50/70">
-              Posílá tě{" "}
-              <strong className="font-bold text-mango-400">{bavic.jmeno}</strong> z
-              Longevity Baru.
+              {t.kviz.posilaTePred}{" "}
+              <strong className="font-bold text-mango-400">{bavic.jmeno}</strong>{" "}
+              {t.kviz.posilaTePo}
             </p>
           </div>
         </section>
@@ -154,9 +154,10 @@ export default function KvizFlowProfil({
 
       {faze === "otazky" && (
         <section className="space-y-4">
-          <h1 className="text-stin">{PROFIL_OTAZKY[krok].text}</h1>
+          <h1 className="text-stin">{t.kvizProfil.otazky[krok]}</h1>
           <Volby
-            moznosti={PROFIL_OTAZKY[krok].moznosti}
+            emoji={PROFIL_OTAZKY[krok].moznosti.map((m) => m.emoji)}
+            popisky={t.kvizProfil.moznosti[krok]}
             vybrana={odpovedi[krok]}
             vybrat={odpovedet}
           />
@@ -173,11 +174,11 @@ export default function KvizFlowProfil({
             <div className="relative mx-auto grid h-20 w-20 place-items-center">
               <span className="zare absolute inset-0 rounded-full" aria-hidden />
               <span className="relative text-5xl leading-none" aria-hidden>
-                {VYHODNOCENI_TEXTY.nadpisEmoji}
+                {t.kvizProfil.vyhodnoceni.nadpisEmoji}
               </span>
             </div>
             <h1 className="text-stin">
-              {VYHODNOCENI_TEXTY.nadpisPrefix}
+              {t.kvizProfil.vyhodnoceni.nadpisPrefix}
               <br />
               <span className="text-mango-400">{vyhodnoceni.personaNadpis}</span>
             </h1>
@@ -194,7 +195,9 @@ export default function KvizFlowProfil({
           </p>
 
           <div className="karta space-y-3">
-            <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisPostrehy}</p>
+            <p className="stitek-sekce">
+              {t.kvizProfil.vyhodnoceni.nadpisPostrehy}
+            </p>
             <ul>
               {vyhodnoceni.postrehy.map((postreh) => (
                 <PostrehRadek key={postreh.text} postreh={postreh} />
@@ -205,7 +208,9 @@ export default function KvizFlowProfil({
           {/* Teplý odstín místo třetí stejné skleněné desky: karta „proč“ je
               argument, který ústí do zlatého CTA hned pod ní. */}
           <div className="karta space-y-2 border-mango-400/35 bg-mango-400/[0.11]">
-            <p className="stitek-sekce">{VYHODNOCENI_TEXTY.nadpisProcProdukty}</p>
+            <p className="stitek-sekce">
+              {t.kvizProfil.vyhodnoceni.nadpisProcProdukty}
+            </p>
             <p className="text-[0.9375rem] leading-relaxed text-kokos-50/90">
               {vyhodnoceni.procProdukty}
             </p>
@@ -213,7 +218,7 @@ export default function KvizFlowProfil({
 
           {/* Povinné odlišení od zdravotního doporučení (brief 4. 8. 2026). */}
           <p className="text-center text-xs leading-relaxed text-kokos-50/70">
-            {PROFIL_DISCLAIMER}
+            {t.kvizProfil.disclaimer}
           </p>
 
           <button
@@ -221,7 +226,7 @@ export default function KvizFlowProfil({
             onClick={() => setFaze("vyber")}
             className="tlacitko-hlavni"
           >
-            {VYHODNOCENI_TEXTY.tlacitkoNabidka} →
+            {t.kvizProfil.vyhodnoceni.tlacitkoNabidka} →
           </button>
         </section>
       )}
@@ -235,15 +240,18 @@ export default function KvizFlowProfil({
                 ✨
               </span>
             </div>
-            <h1 className="text-stin">Tvoje rutina na míru</h1>
+            <h1 className="text-stin">{t.kvizProfil.vyberNadpis}</h1>
             {nazvyProfilu.length > 0 && (
               <p className="mx-auto max-w-[20rem] text-[0.9375rem] font-extrabold leading-relaxed text-mango-400">
                 {nazvyProfilu.join(" + ")}
               </p>
             )}
             <p className="mx-auto max-w-[20rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
-              Vyber si <strong className="text-mango-400">jeden produkt</strong> — na něj
-              dostaneš kupón {SLEVA_PROCENT}&nbsp;%.
+              {t.kvizProfil.vyberPopisPred}{" "}
+              <strong className="text-mango-400">
+                {t.kvizProfil.vyberJedenProdukt}
+              </strong>{" "}
+              {sazba(t.kvizProfil.vyberPopisPo)}
             </p>
           </div>
 
@@ -278,19 +286,21 @@ export default function KvizFlowProfil({
                          hover:bg-mango-400/20 active:translate-y-[2px]"
             >
               <span className="text-2xl" aria-hidden>
-                {VYHODNOCENI_TEXTY.katalogEmoji}
+                {t.kvizProfil.vyhodnoceni.katalogEmoji}
               </span>
-              <span className="leading-tight">{VYHODNOCENI_TEXTY.tlacitkoKatalog}</span>
+              <span className="leading-tight">
+                {t.kvizProfil.vyhodnoceni.tlacitkoKatalog}
+              </span>
             </button>
           )}
 
           {/* Povinné odlišení od zdravotního doporučení (brief 4. 8. 2026). */}
           <p className="karta text-center text-[0.8125rem] font-semibold leading-relaxed text-kokos-50/90">
-            {PROFIL_DISCLAIMER}
+            {t.kvizProfil.disclaimer}
           </p>
 
           <p className="text-center text-xs leading-relaxed text-kokos-50/70">
-            Kupón platí na e-shopu wildandcoco.com, ne u stánku.
+            {t.kviz.kuponPlatiVEshopu}
           </p>
         </section>
       )}
@@ -304,9 +314,9 @@ export default function KvizFlowProfil({
                 {produkt.emoji}
               </span>
             </div>
-            <h1 className="mt-1 text-stin">Kam ti kupón pošleme?</h1>
+            <h1 className="mt-1 text-stin">{t.kviz.formularNadpis}</h1>
             <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
-              {SLEVA_PROCENT}&nbsp;% na{" "}
+              {sazba(t.kviz.formularSlevaPred)}{" "}
               <strong className="text-mango-400">{produkt.nazev}</strong>
             </p>
             <button
@@ -316,7 +326,7 @@ export default function KvizFlowProfil({
                          text-kokos-50/70 underline decoration-white/30 underline-offset-4
                          transition hover:text-kokos-50 hover:decoration-mango-400"
             >
-              Změnit produkt
+              {t.kviz.zmenitProdukt}
             </button>
           </div>
 
@@ -324,6 +334,8 @@ export default function KvizFlowProfil({
             <input type="hidden" name="bavic" value={bavic.slug} />
             <input type="hidden" name="produkt" value={produkt.slug} />
             <input type="hidden" name="quiz_variant" value="profil" />
+            {/* Jazyk kupónového e-mailu = jazyk, ve kterém host kvíz vyplnil. */}
+            <input type="hidden" name="lang" value={lang} />
             {referralKod && (
               <input type="hidden" name="od" value={referralKod} />
             )}
@@ -334,7 +346,7 @@ export default function KvizFlowProfil({
               onChange={(e) => setJmeno(e.target.value)}
               required
               maxLength={80}
-              placeholder="Křestní jméno"
+              placeholder={t.spolecne.krestniJmeno}
               autoComplete="given-name"
               className="vstup"
             />
@@ -346,7 +358,7 @@ export default function KvizFlowProfil({
               type="email"
               inputMode="email"
               maxLength={160}
-              placeholder="E-mail"
+              placeholder={t.spolecne.email}
               autoComplete="email"
               className="vstup"
             />
@@ -357,7 +369,7 @@ export default function KvizFlowProfil({
               required
               type="tel"
               inputMode="tel"
-              placeholder="Telefon (např. 601 123 456)"
+              placeholder={t.spolecne.telefonPlaceholder}
               autoComplete="tel"
               className="vstup"
             />
@@ -367,7 +379,7 @@ export default function KvizFlowProfil({
               disabled={ceka}
               className="tlacitko-hlavni mt-1 disabled:opacity-70"
             >
-              {ceka ? "Posílám…" : `Chci kupón ${SLEVA_PROCENT} %`}
+              {ceka ? t.kviz.posilam : t.kviz.chciKupon}
             </button>
 
             {vysledek?.stav === "chyba" && (
@@ -380,10 +392,7 @@ export default function KvizFlowProfil({
             )}
 
             <p className="px-1 text-center text-[0.6875rem] leading-relaxed text-kokos-50/80">
-              Kontakt použijeme na poslání kupónu a Longevity tipů od
-              WILD&amp;COCO nejdéle do 31.&nbsp;12.&nbsp;2026 (max. 6 zpráv).
-              Souhlas můžeš kdykoli odvolat, detaily v Pravidlech níže.
-              Odpovědi z kvízu si neukládáme.
+              {sazba(t.kviz.souhlas)}
             </p>
           </form>
         </section>
@@ -440,7 +449,15 @@ function MrizkaProduktu({
   );
 }
 
-function Hlavicka({ cislo, zpet }: { cislo: number | null; zpet: () => void }) {
+function Hlavicka({
+  cislo,
+  zpet,
+  t,
+}: {
+  cislo: number | null;
+  zpet: () => void;
+  t: Dict;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
       <button
@@ -449,12 +466,12 @@ function Hlavicka({ cislo, zpet }: { cislo: number | null; zpet: () => void }) {
         className="-ml-2 flex min-h-[2.5rem] items-center rounded-full px-2 text-sm
                    font-semibold text-kokos-50/80 transition hover:bg-white/10 hover:text-kokos-50"
       >
-        ← Zpět
+        {t.spolecne.zpet}
       </button>
       {cislo ? (
         <span className="flex flex-col items-end gap-1.5">
           <span className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-kokos-50/60">
-            Otázka {cislo} z {POCET_OTAZEK}
+            {t.kvizProfil.otazkaZ(cislo, POCET_OTAZEK)}
           </span>
           <span className="flex gap-1" aria-hidden>
             {Array.from({ length: POCET_OTAZEK }, (_, i) => i + 1).map((i) => (
@@ -470,7 +487,7 @@ function Hlavicka({ cislo, zpet }: { cislo: number | null; zpet: () => void }) {
         </span>
       ) : (
         <span className="odznak bg-mango-400/15 text-[0.7rem] tracking-[0.16em] text-mango-400">
-          Hotovo ✨
+          {t.kvizProfil.hotovo}
         </span>
       )}
     </div>
@@ -478,19 +495,22 @@ function Hlavicka({ cislo, zpet }: { cislo: number | null; zpet: () => void }) {
 }
 
 function Volby({
-  moznosti,
+  emoji,
+  popisky,
   vybrana,
   vybrat,
 }: {
-  moznosti: ProfilMoznost[];
+  emoji: string[];
+  /** Texty odpovědí ve zvoleném jazyce, ve stejném pořadí jako `emoji`. */
+  popisky: string[];
   vybrana: number | undefined;
   vybrat: (index: number) => void;
 }) {
   return (
     <div className="space-y-2.5">
-      {moznosti.map((m, i) => (
+      {popisky.map((text, i) => (
         <button
-          key={m.text}
+          key={text}
           type="button"
           onClick={() => vybrat(i)}
           aria-pressed={i === vybrana}
@@ -500,9 +520,9 @@ function Volby({
           ].join(" ")}
         >
           <span className="volba-ikona" aria-hidden>
-            {m.emoji}
+            {emoji[i]}
           </span>
-          <span className="flex-1">{m.text}</span>
+          <span className="flex-1">{text}</span>
           <span className="pr-1 text-2xl leading-none text-mango-400" aria-hidden>
             ›
           </span>
@@ -512,7 +532,13 @@ function Volby({
   );
 }
 
-function Vyhra({ vysledek }: { vysledek: Extract<VysledekKuponu, { stav: "ok" }> }) {
+function Vyhra({
+  vysledek,
+  t,
+}: {
+  vysledek: Extract<VysledekKuponu, { stav: "ok" }>;
+  t: Dict;
+}) {
   return (
     <div className="space-y-5">
       <Konfety kusu={70} />
@@ -524,16 +550,16 @@ function Vyhra({ vysledek }: { vysledek: Extract<VysledekKuponu, { stav: "ok" }>
             {vysledek.emoji}
           </span>
         </div>
-        <h1 className="mt-1 text-stin">Máš to! 🎉</h1>
+        <h1 className="mt-1 text-stin">{t.kviz.vyhraNadpis}</h1>
         <p className="mx-auto mt-2 max-w-[19rem] text-[0.9375rem] font-semibold leading-relaxed text-kokos-50/85">
-          Kupón {SLEVA_PROCENT}&nbsp;% na{" "}
+          {sazba(t.kviz.vyhraKuponPred)}{" "}
           <strong className="text-mango-400">{vysledek.produkt}</strong>
         </p>
       </div>
 
       <div className="animate-popIn rounded-3xl border-4 border-mango-400 bg-gradient-to-br from-zapad-500 to-mango-500 px-4 py-5 text-center shadow-[0_20px_44px_-20px_rgba(255,107,53,0.85)]">
         <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-inkoust/75">
-          Kód kupónu
+          {t.kviz.kodKuponu}
         </p>
         <p className="kod-kuponu mt-2 text-[1.6rem] font-black leading-tight text-inkoust">
           {vysledek.kod}
@@ -541,28 +567,31 @@ function Vyhra({ vysledek }: { vysledek: Extract<VysledekKuponu, { stav: "ok" }>
       </div>
 
       <a href={ESHOP_URL} className="tlacitko-zapad text-[0.9375rem] tracking-[0.03em]">
-        Nakoupit na wildandcoco.com
+        {t.kviz.nakoupit}
       </a>
 
       {/* Viz KvizFlow: po kvízu je host přihlášený, pustíme ho rovnou do appky. */}
       <Link href="/" className="tlacitko-vedlejsi text-[0.9375rem] tracking-[0.03em]">
-        Pokračovat do Longevity Bar appky →
+        {t.kviz.pokracovatDoAppky}
       </Link>
 
       <div className="karta space-y-2.5 text-center text-sm leading-relaxed text-kokos-50/90">
         <p>
           {vysledek.emailOdeslan ? (
             <>
-              Kupón ti letí i na{" "}
+              {t.kviz.emailOdeslanPred}{" "}
               <strong className="break-words font-bold text-mango-300">
                 {vysledek.email}
               </strong>{" "}
-              — mrkni i do spamu.
+              {t.kviz.emailOdeslanPo}
             </>
           ) : (
             <>
-              E-mail se nám teď nepodařilo odeslat — kód si prosím{" "}
-              <strong className="font-bold text-mango-300">vyfoť nebo opiš</strong>.
+              {t.kviz.emailNeodeslanPred}{" "}
+              <strong className="font-bold text-mango-300">
+                {t.kviz.emailNeodeslanZvyraznene}
+              </strong>
+              {t.kviz.emailNeodeslanPo}
             </>
           )}
         </p>

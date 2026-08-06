@@ -23,6 +23,8 @@ import {
   DAREK_PODTEXT,
   DAREK_QR_SOUBOR,
 } from "../src/lib/darek";
+import { cs } from "../src/lib/i18n/cs";
+import { en } from "../src/lib/i18n/en";
 import {
   KREDIT_NEDOSTUPNY,
   nacistStavKreditu,
@@ -49,19 +51,28 @@ const bridge = read("src/lib/healing-credit.ts");
 /* A) Z kvízu rovnou do appky                                                 */
 /* ========================================================================== */
 
+// CTA i tlačítko nákupu jsou od 6. 8. 2026 ve slovníku. Schválené české znění
+// se hlídá tam, v komponentách se hlídá zapojení a pořadí obou akcí.
 const CTA = "Pokračovat do Longevity Bar appky →";
+assert.equal(cs.kviz.pokracovatDoAppky, CTA, "schválené CTA se nesmí měnit");
+assert.equal(cs.kviz.nakoupit, "Nakoupit na wildandcoco.com");
+assert.ok(
+  en.kviz.pokracovatDoAppky.trim().length > 0 && en.kviz.nakoupit.trim().length > 0,
+  "obě akce musí existovat i anglicky",
+);
+
 for (const [jmeno, zdroj] of [
   ["KvizFlow", kvizFlow],
   ["KvizFlowProfil", kvizProfil],
 ] as const) {
-  assert.ok(zdroj.includes(CTA), `${jmeno}: chybí schválené CTA „${CTA}"`);
   assert.match(
     zdroj,
-    /<Link href="\/" className="tlacitko-vedlejsi[^"]*">\s*Pokračovat do Longevity Bar appky →/,
+    /<Link href="\/" className="tlacitko-vedlejsi[^"]*">\s*\{t\.kviz\.pokracovatDoAppky\}/,
     `${jmeno}: CTA musí vést na rozcestník a být sekundární tlačítko`,
   );
   assert.ok(
-    zdroj.indexOf("Nakoupit na wildandcoco.com") < zdroj.indexOf(CTA),
+    zdroj.indexOf("{t.kviz.nakoupit}") >= 0 &&
+      zdroj.indexOf("{t.kviz.nakoupit}") < zdroj.indexOf("{t.kviz.pokracovatDoAppky}"),
     `${jmeno}: nákup zůstává hlavní akcí, appka je až pod ním`,
   );
   assert.match(zdroj, /^import Link from "next\/link";$/m, `${jmeno}: chybí import Link`);
@@ -99,12 +110,23 @@ assert.ok(
   "zobrazený odkaz musí odpovídat cíli QR kódu",
 );
 
-for (const konstanta of ["DAREK_NADPIS", "DAREK_PODTEXT", "DAREK_QR_SOUBOR", "DAREK_KVIZ_URL"]) {
+// Adresa QR a soubor jsou pořád konstanty; texty přešly do slovníku, který je
+// z těch konstant PŘEBÍRÁ (hlídá `check-i18n.ts`). Ověří se tedy obojí.
+for (const konstanta of ["DAREK_QR_SOUBOR", "DAREK_KVIZ_URL"]) {
   assert.ok(
     darek.includes(konstanta),
-    `/darek musí brát ${konstanta} z lib/darek.ts, ne opsaný text`,
+    `/darek musí brát ${konstanta} z lib/darek.ts, ne opsanou hodnotu`,
   );
 }
+assert.equal(cs.darek.nadpis, DAREK_NADPIS, "slovník musí přebírat schválený nadpis");
+assert.equal(cs.darek.podtext, DAREK_PODTEXT, "slovník musí přebírat schválený podtext");
+for (const klic of ["t.darek.nadpis", "t.darek.podtext"]) {
+  assert.ok(darek.includes(klic), `/darek musí vykreslit ${klic}`);
+}
+assert.ok(
+  en.darek.nadpis.trim().length > 0 && en.darek.podtext.trim().length > 0,
+  "dárek musí mít i anglické znění",
+);
 // Přihlášení se na `/darek` ČTE (kvůli osobnímu QR), ale nikdy nevyžaduje —
 // žádný `redirect()` a statické PNG musí zůstat variantou pro nepřihlášené.
 assert.doesNotMatch(darek, /redirect\(/, "/darek musí být viditelný i nepřihlášeným");

@@ -1,6 +1,8 @@
+import { getT } from "@/lib/i18n/server";
+import type { Dict } from "@/lib/i18n/types";
+import type { Lang } from "@/lib/i18n/lang";
 import type { ScanStatus } from "@/lib/loyalty-server";
-import { minuty, razitka } from "@/lib/text";
-import { formatCzechDate } from "@/lib/time";
+import { formatDate } from "@/lib/time";
 
 type Tón = "uspech" | "varovani" | "chyba";
 
@@ -18,50 +20,51 @@ const IKONA: Record<Tón, string> = {
 
 function obsah(
   status: string,
+  t: Dict,
+  lang: Lang,
   min?: number,
   limit?: number,
   den?: string,
 ): { ton: Tón; nadpis: string; text?: string } | null {
+  const h = t.sken.hlasky;
   switch (status as ScanStatus) {
     case "ok":
-      return { ton: "uspech", nadpis: "Razítko připsáno!" };
+      return { ton: "uspech", nadpis: h.okNadpis };
     case "cooldown":
       return {
         ton: "varovani",
-        nadpis: "Razítko už máš",
-        text: `Další si můžeš připsat za ${minuty(min && min > 0 ? min : 1)}. Jedno razítko = jeden nákup.`,
+        nadpis: h.cooldownNadpis,
+        text: h.cooldownText(min && min > 0 ? min : 1),
       };
     case "daily_limit":
       return {
         ton: "varovani",
-        nadpis: "Denní limit vyčerpán",
-        text: `Dnes už máš maximum (${razitka(limit ?? 4)}). Přijď zase zítra!`,
+        nadpis: h.limitNadpis,
+        text: h.limitText(limit ?? 4),
       };
     case "wrong_day":
       return {
         ton: "chyba",
-        nadpis: "Tenhle QR kód dnes neplatí",
-        text: den
-          ? `Kód patří ke dni ${formatCzechDate(den)}. U pokladny si nech ukázat dnešní kód.`
-          : "U pokladny si nech ukázat dnešní kód.",
+        nadpis: h.spatnyDenNadpis,
+        text: den ? h.spatnyDenText(formatDate(den, lang)) : h.spatnyDenBezData,
       };
     case "inactive_day":
       return {
         ton: "chyba",
-        nadpis: "QR kód je vypnutý",
-        text: "Zeptej se prosím obsluhy u pokladny.",
+        nadpis: h.vypnutyNadpis,
+        text: h.vypnutyText,
       };
     case "unknown_token":
       return {
         ton: "chyba",
-        nadpis: "Neznámý QR kód",
-        text: "Nech si prosím ukázat aktuální kód u pokladny.",
+        nadpis: h.neznamyNadpis,
+        text: h.neznamyText,
       };
     case "error":
       return {
         ton: "chyba",
-        nadpis: "Něco se pokazilo",
-        text: "Zkus prosím QR kód sejmout znovu.",
+        nadpis: h.chybaNadpis,
+        text: h.chybaText,
       };
     default:
       return null;
@@ -69,7 +72,7 @@ function obsah(
 }
 
 /** Výsledek skenu QR (zobrazí se na věrnostní kartě po přesměrování). */
-export default function SkenHlaska({
+export default async function SkenHlaska({
   status,
   min,
   limit,
@@ -81,7 +84,8 @@ export default function SkenHlaska({
   den?: string;
 }) {
   if (!status) return null;
-  const data = obsah(status, min, limit, den);
+  const { lang, t } = await getT();
+  const data = obsah(status, t, lang, min, limit, den);
   if (!data) return null;
 
   return (

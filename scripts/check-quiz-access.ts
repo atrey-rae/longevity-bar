@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { cs } from "../src/lib/i18n/cs";
+import { en } from "../src/lib/i18n/en";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}/${path}`, "utf8");
 
@@ -25,10 +28,26 @@ assert.match(page, /getQuizPolicy/);
 assert.match(page, /policy\.loginRequired && !user/);
 assert.match(page, /\/prihlaseni\?next=/);
 assert.match(page, /QuizVariantSelector/);
-assert.match(selector, /Mikrobiom/);
-assert.match(selector, /3 otázky/);
-assert.match(selector, /9 otázek/);
-assert.match(selector, /Hotovo ✓/);
+
+// Popisky rozcestníku variant jsou od 6. 8. 2026 ve slovníku. Kontrolují se
+// česká znění (aby zůstala stejná) i to, že je komponenta bere odtamtud —
+// a že anglické mutace existují a nesou stejná čísla otázek.
+assert.match(cs.kviz.variantaMikrobiom, /Mikrobiom/);
+assert.match(cs.kviz.variantaMikrobiomPopis, /3 otázky/);
+assert.match(cs.kviz.variantaProfilPopis, /9 otázek/);
+assert.match(cs.kviz.hotovo, /Hotovo ✓/);
+assert.match(en.kviz.variantaMikrobiomPopis, /3 questions/);
+assert.match(en.kviz.variantaProfilPopis, /9 questions/);
+assert.ok(en.kviz.hotovo.trim().length > 0, "chybí anglický štítek hotovo");
+for (const klic of [
+  "t.kviz.variantaMikrobiom",
+  "t.kviz.variantaMikrobiomPopis",
+  "t.kviz.variantaProfil",
+  "t.kviz.variantaProfilPopis",
+  "t.kviz.hotovo",
+]) {
+  assert.ok(selector.includes(klic), `selectoru chybí ${klic}`);
+}
 
 assert.match(action, /claimQuizCompletion/);
 assert.match(action, /finishQuizCompletion/);

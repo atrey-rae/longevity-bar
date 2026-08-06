@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
 import type { Product } from "@/lib/types";
 
 /**
@@ -14,6 +15,7 @@ export default function VyberProduktuGrid({
 }: {
   produkty: Product[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [odesilanyId, setOdesilanyId] = useState<string | null>(null);
   const [chyba, setChyba] = useState<string | null>(null);
@@ -44,9 +46,9 @@ export default function VyberProduktuGrid({
         router.refresh();
         return;
       }
-      setChyba(data.zprava ?? "Výběr se nepodařil, zkus to prosím znovu.");
+      setChyba(data.zprava ?? t.vyber.chybaVyberu);
     } catch {
-      setChyba("Nemáš signál? Zkontroluj připojení a zkus to znovu.");
+      setChyba(t.spolecne.nemasSignal);
     } finally {
       setOdesilanyId(null);
     }
@@ -55,7 +57,7 @@ export default function VyberProduktuGrid({
   if (produkty.length === 0) {
     return (
       <p className="karta text-center text-base font-semibold">
-        Momentálně není nic skladem 😢 Zeptej se prosím obsluhy u pokladny.
+        {t.vyber.nicSkladem}
       </p>
     );
   }
@@ -91,7 +93,7 @@ export default function VyberProduktuGrid({
               )}
               {nacita && (
                 <span className="text-xs font-bold uppercase tracking-wider text-zapad-600">
-                  Vybírám…
+                  {t.vyber.vybiram}
                 </span>
               )}
             </button>

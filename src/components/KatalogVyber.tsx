@@ -1,7 +1,8 @@
 "use client";
 
 import { KotvyKategorii, kotva } from "@/app/sortiment/_ui";
-import { KATEGORIE_LABEL, type Kategorie, type KvizProdukt } from "@/lib/kviz";
+import { useT } from "@/lib/i18n/client";
+import type { Kategorie, KvizProdukt } from "@/lib/kviz";
 
 /** Pořadí sekcí v katalogu — kopíruje pořadí skupin v `PRODUKTY`. */
 const PORADI_KATEGORII: Kategorie[] = [
@@ -42,7 +43,11 @@ export default function KatalogVyber({
   produkty: KvizProdukt[];
   vybrat: (produkt: KvizProdukt) => void;
 }) {
+  const t = useT();
   const skupiny = seskupitPodleKategorie(produkty);
+  // Kotva jede z klíče kategorie, ne z jejího popisku — odkaz `#streva`
+  // zůstane platný i po přepnutí jazyka uprostřed listování.
+  const kotvaKategorie = (kategorie: Kategorie) => kotva(kategorie);
 
   return (
     <div className="space-y-5">
@@ -51,17 +56,20 @@ export default function KatalogVyber({
           v /sortiment/*, ať je to napříč appkou jeden vzor. */}
       {skupiny.length > 1 && (
         <KotvyKategorii
-          popisek="Kategorie sortimentu"
-          kategorie={skupiny.map((s) => KATEGORIE_LABEL[s.kategorie])}
+          popisek={t.sortiment.kategorieLabel}
+          kategorie={skupiny.map((s) => ({
+            id: kotvaKategorie(s.kategorie),
+            label: t.kviz.kategorie[s.kategorie],
+          }))}
         />
       )}
       {skupiny.map((skupina) => (
         <div
           key={skupina.kategorie}
-          id={kotva(KATEGORIE_LABEL[skupina.kategorie])}
+          id={kotvaKategorie(skupina.kategorie)}
           className="scroll-mt-32 space-y-2.5"
         >
-          <p className="stitek-sekce">{KATEGORIE_LABEL[skupina.kategorie]}</p>
+          <p className="stitek-sekce">{t.kviz.kategorie[skupina.kategorie]}</p>
           <div className="grid grid-cols-2 gap-2.5">
             {skupina.polozky.map((p) => (
               <button

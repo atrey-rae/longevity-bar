@@ -20,24 +20,29 @@ export function monogram(name: string): string {
   return (znak ? znak[0] : "•").toLocaleUpperCase("cs-CZ");
 }
 
+/**
+ * Jedna kategorie v kotvicím pásu.
+ *
+ * `id` je kotva a je ZÁMĚRNĚ oddělené od popisku: kotva se odvozuje z českého
+ * klíče kategorie, takže odkaz `#kava-kakao` zůstává stejný v obou jazycích
+ * a nerozbije se přepnutím jazyka uprostřed listování.
+ */
+export type KotvaKategorie = { id: string; label: string };
+
 /** Přilepený pás s kotvami na kategorie. */
 export function KotvyKategorii({
   popisek,
   kategorie,
 }: {
   popisek: string;
-  kategorie: readonly string[];
+  kategorie: readonly KotvaKategorie[];
 }) {
   return (
     <div className="nav-kategorie-obal">
       <nav aria-label={popisek} className="nav-kategorie">
-        {kategorie.map((kategorieNazev) => (
-          <a
-            key={kategorieNazev}
-            href={`#${kotva(kategorieNazev)}`}
-            className="nav-kategorie-polozka"
-          >
-            {kategorieNazev}
+        {kategorie.map(({ id, label }) => (
+          <a key={id} href={`#${id}`} className="nav-kategorie-polozka">
+            {label}
           </a>
         ))}
       </nav>

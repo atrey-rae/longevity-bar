@@ -10,6 +10,8 @@
  * v prohlížeči).
  */
 
+import { getDict } from "./i18n";
+import { normalizeLang, DEFAULT_LANG, type Lang } from "./i18n/lang";
 import {
   DEFAULT_QUIZ_VARIANT,
   QUIZ_VARIANTS,
@@ -31,6 +33,11 @@ export type KvizFormVstup = {
   telefon: string;
   /** Kód z `?od=` — `null`, když chyběl nebo neprošel validací. */
   referralKod: string | null;
+  /**
+   * Jazyk, ve kterém host kvíz vyplnil. Řídí JEN jazyk kupónového e-mailu —
+   * do `quiz_leads` se nezapisuje (viz `sestavitQuizLeadZaznam`).
+   */
+  lang: Lang;
 };
 
 export type VysledekParsovani =
@@ -61,29 +68,36 @@ function variantaZFormulare(formData: FormData): QuizVariant {
 }
 
 /**
- * Zvaliduje formulář kvízu. Chybové texty jsou schválně stejné jako dřív —
- * refaktor nesmí návštěvníkovi změnit ani jedno slovo.
+ * Zvaliduje formulář kvízu.
+ *
+ * Chybové texty se berou ze slovníku (`chyby.*`) — česká znění jsou v `i18n/cs`
+ * doslova stejná jako dřív, refaktor nesmí návštěvníkovi změnit ani jedno slovo.
+ * Jazyk se čte ze skrytého pole `lang`; když chybí nebo je nesmyslný, spadne na
+ * češtinu, takže starší zacachovaný formulář dál funguje.
  */
 export function parseKvizFormData(formData: FormData): VysledekParsovani {
+  const lang = normalizeLang(text(formData, "lang")) ?? DEFAULT_LANG;
+  const { chyby } = getDict(lang);
+
   const bavic = najitBavice(text(formData, "bavic"));
   const produkt = najitProdukt(text(formData, "produkt"));
   if (!bavic || !produkt) {
-    return { ok: false, zprava: "Něco se rozbilo. Načti prosím QR kód znovu." };
+    return { ok: false, zprava: chyby.rozbiloSe };
   }
 
   const jmeno = text(formData, "jmeno").slice(0, 80);
   if (jmeno.length < 2) {
-    return { ok: false, zprava: "Napiš nám prosím svoje křestní jméno." };
+    return { ok: false, zprava: chyby.napisJmeno };
   }
 
   const email = text(formData, "email").toLowerCase().slice(0, 160);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, zprava: "Zkontroluj prosím e-mail — kupón ti na něj pošleme." };
+    return { ok: false, zprava: chyby.zkontrolujEmail };
   }
 
   const telefon = normalizovatTelefon(text(formData, "telefon"));
   if (!telefon) {
-    return { ok: false, zprava: "Telefon nám nesedí. Zkus ho zadat znovu." };
+    return { ok: false, zprava: chyby.telefonNesedi };
   }
 
   return {
@@ -98,6 +112,7 @@ export function parseKvizFormData(formData: FormData): VysledekParsovani {
       // Na referralu se NIKDY nepadá: nesmysl v `?od=` se tiše zahodí a kvíz
       // proběhne úplně stejně jako bez něj.
       referralKod: normalizovatReferralKod(formData.get(REFERRAL_PARAM)),
+      lang,
     },
   };
 }

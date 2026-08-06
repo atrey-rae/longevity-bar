@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import QuizVariantSelector from "@/components/QuizVariantSelector";
+import { getT } from "@/lib/i18n/server";
 import {
   PUBLIC_WEB_QUIZ_HOST,
   VSICHNI_HOSTE,
@@ -13,9 +14,10 @@ import { completedQuizVariants, getQuizPolicy } from "@/lib/quiz-access";
 import { REFERRAL_PARAM, normalizovatReferralKod, sReferralem } from "@/lib/referral";
 import { getSessionUser } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Odemkni potenciál svého mikrobiomu — kvíz",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t.kviz.titulek };
+}
 
 /**
  * Devět bavičů (A1–I9) a tři samostatné vstupy — veřejný `web` z rozcestníku

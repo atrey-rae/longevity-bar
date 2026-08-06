@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 
 type Krok = "telefon" | "kod";
@@ -13,6 +14,8 @@ const CEKANI_NA_ZNOVUPOSLANI_S = 45;
  * Primární přihlášení telefonem; Google zůstává jako sekundární recovery/admin cesta.
  */
 export default function PrihlaseniFormular({ next }: { next: string }) {
+  const t = useT();
+  const f = t.prihlaseni.formular;
   const router = useRouter();
 
   const [krok, setKrok] = useState<Krok>("telefon");
@@ -68,13 +71,13 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       // Prohlížeč se přesměruje na Google.
     } catch {
       setNacita(null);
-      setChyba("Přihlášení přes Google se nepodařilo. Zkus telefon výše.");
+      setChyba(f.chybaGoogle);
     }
   }
 
   async function poslatKod(znovu = false) {
     if (telefon.replace(/\D/g, "").length < 9) {
-      setChyba("Zadej prosím platné telefonní číslo.");
+      setChyba(f.chybaTelefon);
       return;
     }
     setChyba(null);
@@ -86,7 +89,7 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
         body: JSON.stringify({ phone: telefon }),
       });
       const data = await response.json() as { challengeId?: string | null; expiresAt?: string | null; error?: string };
-      if (!response.ok || !data.challengeId) throw new Error(data.error || "SMS se nepodařilo odeslat.");
+      if (!response.ok || !data.challengeId) throw new Error(data.error || f.chybaSms);
       setChallengeId(data.challengeId);
       setExpiresAt(data.expiresAt ?? null);
       setKrok("kod");
@@ -96,7 +99,7 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       setOdpocet(CEKANI_NA_ZNOVUPOSLANI_S);
       if (znovu) setKod("");
     } catch (e) {
-      setChyba(e instanceof Error ? e.message : "SMS s kódem se nepodařilo odeslat.");
+      setChyba(e instanceof Error ? e.message : f.chybaSmsKod);
     } finally {
       setNacita(null);
     }
@@ -105,7 +108,7 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
   async function overitKod() {
     const cistyKod = kod.replace(/\D/g, "");
     if (cistyKod.length !== 4 || !challengeId) {
-      setChyba("Kód má 4 číslice.");
+      setChyba(f.chybaDelkaKodu);
       return;
     }
     setChyba(null);
@@ -117,7 +120,7 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
         body: JSON.stringify({ challengeId, phone: telefon, code: cistyKod, next }),
       });
       const data = await response.json() as { tokenHash?: string; next?: string; error?: string };
-      if (!response.ok || !data.tokenHash) throw new Error(data.error || "Kód nesedí nebo vypršel.");
+      if (!response.ok || !data.tokenHash) throw new Error(data.error || f.chybaKod);
       const supabase = getBrowserSupabase();
       const { error } = await supabase.auth.verifyOtp({ token_hash: data.tokenHash, type: "email" });
       if (error) throw error;
@@ -126,14 +129,14 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       router.refresh();
     } catch (error) {
       setNacita(null);
-      setChyba(error instanceof Error ? error.message : "Kód nesedí nebo už vypršel.");
+      setChyba(error instanceof Error ? error.message : f.chybaKodVyprsel);
     }
   }
 
   async function poslatLegacyEmailKod() {
     const email = legacyEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setChyba("Zadej platný e-mail existujícího účtu."); return;
+      setChyba(f.chybaLegacyEmail); return;
     }
     setNacita("kod"); setChyba(null);
     try {
@@ -141,19 +144,19 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
       if (error) throw error;
       setLegacyEmail(email); setLegacyCekaNaKod(true);
-    } catch { setChyba("Kód se nepodařilo poslat. Zkontroluj, že účet už existuje."); }
+    } catch { setChyba(f.chybaLegacyPoslani); }
     finally { setNacita(null); }
   }
 
   async function overitLegacyEmailKod() {
-    if (!/^\d{6}$/.test(legacyKod)) { setChyba("E-mailový kód má 6 číslic."); return; }
+    if (!/^\d{6}$/.test(legacyKod)) { setChyba(f.chybaLegacyDelka); return; }
     setNacita("overeni"); setChyba(null);
     try {
       const supabase = getBrowserSupabase();
       const { error } = await supabase.auth.verifyOtp({ email: legacyEmail, token: legacyKod, type: "email" });
       if (error) throw error;
       router.replace(next); router.refresh();
-    } catch { setChyba("E-mailový kód nesedí nebo vypršel."); setNacita(null); }
+    } catch { setChyba(f.chybaLegacyKod); setNacita(null); }
   }
 
   return (
@@ -161,27 +164,27 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       {krok === "telefon" ? (
         <div className="space-y-3">
           <label className="block">
-            <span className="mb-1 block text-sm font-bold uppercase tracking-wider text-kokos-50/80">Tvůj telefon</span>
-            <input className="vstup" type="tel" inputMode="tel" autoComplete="tel" placeholder="601 123 456" value={telefon} onChange={(e) => setTelefon(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void poslatKod(); }} />
+            <span className="mb-1 block text-sm font-bold uppercase tracking-wider text-kokos-50/80">{f.tvujTelefon}</span>
+            <input className="vstup" type="tel" inputMode="tel" autoComplete="tel" placeholder={f.telefonPlaceholder} value={telefon} onChange={(e) => setTelefon(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void poslatKod(); }} />
           </label>
           <button type="button" onClick={() => void poslatKod()} disabled={nacita !== null} className="tlacitko-hlavni disabled:opacity-70">
-            {nacita === "kod" ? "Odesílám…" : "Poslat SMS kód"}
+            {nacita === "kod" ? f.odesilam : f.poslatSms}
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-center text-sm text-kokos-50/80">Poslali jsme 4místný kód na <strong className="font-bold text-mango-400">{telefon}</strong>.</p>
+          <p className="text-center text-sm text-kokos-50/80">{f.poslaliJsmeKodPred} <strong className="font-bold text-mango-400">{telefon}</strong>{f.poslaliJsmeKodPo}</p>
           <input className="vstup text-center text-3xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" maxLength={4} placeholder="0000" value={kod} onChange={(e) => setKod(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") void overitKod(); }} autoFocus />
-          <button type="button" onClick={() => void overitKod()} disabled={nacita !== null} className="tlacitko-hlavni disabled:opacity-70">{nacita === "overeni" ? "Ověřuji…" : "Přihlásit se"}</button>
+          <button type="button" onClick={() => void overitKod()} disabled={nacita !== null} className="tlacitko-hlavni disabled:opacity-70">{nacita === "overeni" ? f.overuji : t.spolecne.prihlasitSe}</button>
           <div className="flex justify-between text-sm">
-            <button type="button" className="odkaz" onClick={() => { setKrok("telefon"); setKod(""); setChallengeId(null); setExpiresAt(null); setChyba(null); window.sessionStorage.removeItem("longevity-phone-auth"); }}>Změnit telefon</button>
-            <button type="button" className="odkaz disabled:opacity-50 disabled:no-underline" disabled={odpocet > 0 || nacita !== null} onClick={() => void poslatKod(true)}>{odpocet > 0 ? `Poslat znovu (${odpocet} s)` : "Poslat znovu"}</button>
+            <button type="button" className="odkaz" onClick={() => { setKrok("telefon"); setKod(""); setChallengeId(null); setExpiresAt(null); setChyba(null); window.sessionStorage.removeItem("longevity-phone-auth"); }}>{f.zmenitTelefon}</button>
+            <button type="button" className="odkaz disabled:opacity-50 disabled:no-underline" disabled={odpocet > 0 || nacita !== null} onClick={() => void poslatKod(true)}>{odpocet > 0 ? f.poslatZnovuOdpocet(odpocet) : f.poslatZnovu}</button>
           </div>
-          {expiresAt && <p className="text-center text-xs text-kokos-50/50">Kód platí 10 minut.</p>}
+          {expiresAt && <p className="text-center text-xs text-kokos-50/50">{f.kodPlati}</p>}
         </div>
       )}
 
-      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-kokos-50/50"><span className="h-px flex-1 bg-white/20" />nebo<span className="h-px flex-1 bg-white/20" /></div>
+      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-kokos-50/50"><span className="h-px flex-1 bg-white/20" />{f.nebo}<span className="h-px flex-1 bg-white/20" /></div>
 
       {/* Google – sekundární cesta pro existující účet a administraci. */}
       <button
@@ -208,19 +211,19 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
             d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2 1.4-4.8 2.4-8.3 2.4-6.4 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"
           />
         </svg>
-        {nacita === "google" ? "Přesměrovávám…" : "Přihlásit existující účet přes Google"}
+        {nacita === "google" ? f.presmerovavam : f.google}
       </button>
 
       <details className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
-        <summary className="cursor-pointer text-center text-sm font-bold text-kokos-50/75">Přihlásit existující účet e-mailem</summary>
+        <summary className="cursor-pointer text-center text-sm font-bold text-kokos-50/75">{f.legacyShrnuti}</summary>
         <div className="mt-3 space-y-2">
           {!legacyCekaNaKod ? <>
-            <input className="vstup" type="email" inputMode="email" autoComplete="email" placeholder="jmeno@email.cz" value={legacyEmail} onChange={(event) => setLegacyEmail(event.target.value)} />
-            <button type="button" className="tlacitko-vedlejsi w-full" disabled={nacita !== null} onClick={() => void poslatLegacyEmailKod()}>Poslat kód na e-mail</button>
+            <input className="vstup" type="email" inputMode="email" autoComplete="email" placeholder={t.spolecne.emailPlaceholder} value={legacyEmail} onChange={(event) => setLegacyEmail(event.target.value)} />
+            <button type="button" className="tlacitko-vedlejsi w-full" disabled={nacita !== null} onClick={() => void poslatLegacyEmailKod()}>{f.legacyPoslat}</button>
           </> : <>
-            <p className="text-center text-xs text-kokos-50/70">6místný kód jsme poslali na {legacyEmail}.</p>
+            <p className="text-center text-xs text-kokos-50/70">{f.legacyPoslano(legacyEmail)}</p>
             <input className="vstup text-center text-2xl tracking-[0.35em]" inputMode="numeric" maxLength={6} value={legacyKod} onChange={(event) => setLegacyKod(event.target.value.replace(/\D/g, ""))} />
-            <button type="button" className="tlacitko-vedlejsi w-full" disabled={nacita !== null} onClick={() => void overitLegacyEmailKod()}>Ověřit e-mailový kód</button>
+            <button type="button" className="tlacitko-vedlejsi w-full" disabled={nacita !== null} onClick={() => void overitLegacyEmailKod()}>{f.legacyOverit}</button>
           </>}
         </div>
       </details>

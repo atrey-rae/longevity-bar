@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import { vydatObjednavku } from "@/lib/healing-credit";
+import { getT } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -15,10 +16,11 @@ export const dynamic = "force-dynamic";
  * cizí `orderId` z ručně poslaného requestu.
  */
 export async function POST(request: NextRequest) {
+  const { lang, t } = await getT();
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json(
-      { status: "unauthorized", zprava: "Nejsi přihlášený." },
+      { status: "unauthorized", zprava: t.chyby.neprihlasen },
       { status: 401 },
     );
   }
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
   const orderId = (telo as { orderId?: unknown } | null)?.orderId;
   if (typeof orderId !== "string" || orderId.trim() === "") {
     return NextResponse.json(
-      { status: "chyba", zprava: "Chybí objednávka k výdeji." },
+      { status: "chyba", zprava: t.chyby.chybiObjednavka },
       { status: 400 },
     );
   }
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
   const { telefon, stav } = await barCreditProUzivatele(user.id);
   if (!telefon || !stav.eligible) {
     return NextResponse.json(
-      { status: "chyba", zprava: "Kredit na Longevity Baru pro tebe nemáme." },
+      { status: "chyba", zprava: t.chyby.kreditNemas },
       { status: 403 },
     );
   }
@@ -50,12 +52,12 @@ export async function POST(request: NextRequest) {
   );
   if (!cekajici) {
     return NextResponse.json(
-      { status: "chyba", zprava: "Tahle objednávka už je vydaná, nebo neexistuje." },
+      { status: "chyba", zprava: t.chyby.objednavkaVydana },
       { status: 409 },
     );
   }
 
-  const vysledek = await vydatObjednavku(telefon, cekajici.id);
+  const vysledek = await vydatObjednavku(telefon, cekajici.id, fetch, lang);
   if (!vysledek.ok) {
     return NextResponse.json(
       { status: "chyba", zprava: vysledek.zprava },

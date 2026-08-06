@@ -1,16 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getT } from "@/lib/i18n/server";
 import { requestPhoneCode } from "@/lib/phone-auth-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const { t } = await getT();
   let phone = "";
   try {
     const body = (await request.json()) as { phone?: unknown };
     phone = typeof body.phone === "string" ? body.phone : "";
   } catch {
-    return NextResponse.json({ error: "Neplatný požadavek." }, { status: 400 });
+    return NextResponse.json({ error: t.chyby.neplatnyPozadavek }, { status: 400 });
   }
   try {
     const xff = request.headers.get("x-forwarded-for");
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
     const result = await requestPhoneCode(phone, ip);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof TypeError ? "Zadej platné telefonní číslo." : "Kód se teď nepodařilo odeslat. Zkus to za chvíli.";
+    const message = error instanceof TypeError ? t.chyby.zadejPlatnyTelefon : t.chyby.kodNeodeslan;
     return NextResponse.json({ error: message }, { status: error instanceof TypeError ? 400 : 503 });
   }
 }

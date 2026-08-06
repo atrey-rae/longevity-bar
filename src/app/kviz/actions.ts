@@ -1,8 +1,10 @@
 "use server";
 
+import { getDict } from "@/lib/i18n";
+import { DEFAULT_LANG, type Lang } from "@/lib/i18n/lang";
+import type { Dict } from "@/lib/i18n/types";
 import {
   ESHOP_URL,
-  KUPON_PODMINKY,
   KUPON_PODMINKY_FALLBACK,
   SLEVA_PROCENT,
   kodKuponu,
@@ -56,6 +58,9 @@ function chyba(zprava: string): VysledekKuponu {
   return { stav: "chyba", zprava };
 }
 
+/** `<html lang>` kupónového e-mailu. */
+const HTML_LANG: Record<Lang, string> = { cs: "cs", en: "en" };
+
 /**
  * Sloupce `quiz_leads`, které smí z insertu vypadnout, když jejich migrace
  * ještě neproběhla. Pořadí je od nejstarší migrace k nejnovější — bez jména
@@ -93,16 +98,26 @@ export async function odeslatKvizLead(
   /* --- Validace (čistá, testovaná v `lib/kviz-lead.ts`) ------------------- */
   const vstup = parseKvizFormData(formData);
   if (!vstup.ok) return chyba(vstup.zprava);
-  const { bavic, produkt, quizVariant, jmeno, email, telefon, referralKod } =
-    vstup.data;
+  const {
+    bavic,
+    produkt,
+    quizVariant,
+    jmeno,
+    email,
+    telefon,
+    referralKod,
+    lang,
+  } = vstup.data;
+  // Jazyk formuláře řídí VŠECHNY texty pro hosta — hlášky i kupónový e-mail.
+  const t = getDict(lang);
 
   // Kód se skládá ze slugů znovu ověřených proti katalogu (allowlist).
   const sdilenyKod = kodKuponu(bavic.slug, produkt.slug);
-  if (!sdilenyKod) return chyba("Něco se rozbilo. Načti prosím QR kód znovu.");
+  if (!sdilenyKod) return chyba(t.chyby.rozbiloSe);
 
   const [policy, user] = await Promise.all([getQuizPolicy(), getSessionUser()]);
   if (policy.loginRequired && !user) {
-    return chyba("Nejdřív se prosím přihlas telefonním číslem a kvíz otevři znovu.");
+    return chyba(t.chyby.prihlasSeAOtevriKviz);
   }
 
   /* --- Rate-limit --------------------------------------------------------- */
@@ -123,9 +138,7 @@ export async function odeslatKvizLead(
       // Výpadek pomocné ochrany nesmí hosta připravit o kupón.
       console.warn("[kviz] rate-limit dotaz selhal:", chybaLimitu.message);
     } else if (nedavne && nedavne.length > 0) {
-      return chyba(
-        "Kupón už jsme ti před chvílí poslali — mrkni do e-mailu, i do spamu.",
-      );
+      return chyba(t.chyby.kuponUzPoslan);
     }
   } catch (error) {
     console.warn("[kviz] rate-limit dotaz selhal:", error);
@@ -141,12 +154,12 @@ export async function odeslatKvizLead(
       bavicCode: bavic.kod,
     });
     if (!claim.ok) {
-      return chyba("Tuto variantu kvízu už máš dokončenou. Vyber si prosím druhou.");
+      return chyba(t.chyby.variantaHotova);
     }
     claimId = claim.id;
   } catch (error) {
     console.error("[kviz] rezervace dokončení selhala:", error);
-    return chyba("Kvíz se teď nepodařilo dokončit. Zkus to prosím znovu.");
+    return chyba(t.chyby.kvizNedokoncen);
   }
 
   // Personalizovaný kupón vázaný na e-mail (Atrey 3. 8.): do 31. 12. 2026,
@@ -164,13 +177,11 @@ export async function odeslatKvizLead(
   if (duvodFallbacku && !bavic.maSdileneKupony) {
     console.warn(`[kviz] osobní ${bavic.kod} kupón nevznikl:`, duvodFallbacku);
     if (claimId) await releaseQuizClaim(claimId);
-    return chyba(
-      "Osobní kupón se nepodařilo vytvořit. Zkus to prosím za chvíli znovu.",
-    );
+    return chyba(t.chyby.osobniKuponSelhal);
   }
 
   const kod = "kod" in osobni ? osobni.kod : sdilenyKod;
-  const podminky = duvodFallbacku ? KUPON_PODMINKY_FALLBACK : KUPON_PODMINKY;
+  const podminky = duvodFallbacku ? t.kviz.podminkyFallback : t.kviz.podminky;
 
   /* --- Zápis leadu -------------------------------------------------------- */
   // Vše kolem databáze je v try/catch: výjimka ze server action by vyhodila
@@ -222,26 +233,26 @@ export async function odeslatKvizLead(
     if (chybaZapisu) {
       console.error("[kviz] zápis leadu selhal:", chybaZapisu.message);
       if (claimId) await releaseQuizClaim(claimId);
-      return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
+      return chyba(t.chyby.zapisSelhal);
     }
   } catch (e) {
     console.error("[kviz] databáze není dostupná:", e);
     if (claimId) await releaseQuizClaim(claimId);
-    return chyba("Nepodařilo se to uložit. Zkus to prosím ještě jednou.");
+    return chyba(t.chyby.zapisSelhal);
   }
 
   try {
     await finishQuizCompletion(claimId);
   } catch (error) {
     console.error("[kviz] potvrzení dokončení selhalo:", error);
-    return chyba("Kvíz je uložený, ale potvrzení se nepodařilo. Obrať se prosím na tým Longevity Baru.");
+    return chyba(t.chyby.potvrzeniSelhalo);
   }
 
   /* --- E-maily (best-effort) --------------------------------------------- */
   // Paralelně, ať notifikace o fallbacku nepřidá návštěvníkovi ani vteřinu.
   // Obě funkce si chyby řeší samy a nikdy nevyhodí výjimku.
   const [emailOdeslan] = await Promise.all([
-    poslatKupon({ email, jmeno, kod, produkt, podminky }),
+    poslatKupon({ email, jmeno, kod, produkt, podminky, lang, t }),
     duvodFallbacku
       ? oznamitFallback({
           bavic,
@@ -372,12 +383,16 @@ async function poslatKupon({
   kod,
   produkt,
   podminky,
+  lang,
+  t,
 }: {
   email: string;
   jmeno: string;
   kod: string;
   produkt: KvizProdukt;
   podminky: string;
+  lang: Lang;
+  t: Dict;
 }): Promise<boolean> {
   const klic = process.env.RESEND_API_KEY;
   if (!klic) {
@@ -395,9 +410,9 @@ async function poslatKupon({
       body: JSON.stringify({
         from: ODESILATEL,
         to: [email],
-        subject: `Tvůj kupón ${SLEVA_PROCENT} % na ${produkt.nazev}`,
-        html: teloHtml({ jmeno, kod, produkt, podminky }),
-        text: teloText({ jmeno, kod, produkt, podminky }),
+        subject: t.email.kuponPredmet(produkt.nazev),
+        html: teloHtml({ jmeno, kod, produkt, podminky, lang, t }),
+        text: teloText({ jmeno, kod, produkt, podminky, t }),
       }),
       signal: AbortSignal.timeout(EMAIL_TIMEOUT_MS),
     });
@@ -504,24 +519,26 @@ function teloText({
   kod,
   produkt,
   podminky,
+  t,
 }: {
   jmeno: string;
   kod: string;
   produkt: KvizProdukt;
   podminky: string;
+  t: Dict;
 }): string {
   return [
-    `Ahoj ${jmeno},`,
+    t.email.kuponPozdrav(jmeno),
     "",
-    `tvůj mikrobiom si dnes řekl o ${produkt.nazev} — tady je kupón na ${SLEVA_PROCENT} % slevy:`,
+    t.email.kuponTextUvod(produkt.nazev),
     "",
     kod,
     "",
-    `Kód vlož v košíku na ${ESHOP_URL}.`,
+    `${t.email.kuponVlozPred} ${ESHOP_URL}${t.email.kuponVlozPo}`,
     podminky,
     "",
-    "Ať ti chutná!",
-    "Wild & Coco · Longevity Bar",
+    t.email.kuponRozlouceni,
+    t.email.kuponPodpis,
   ].join("\n");
 }
 
@@ -530,33 +547,37 @@ function teloHtml({
   kod,
   produkt,
   podminky,
+  lang,
+  t,
 }: {
   jmeno: string;
   kod: string;
   produkt: KvizProdukt;
   podminky: string;
+  lang: Lang;
+  t: Dict;
 }): string {
   return `<!doctype html>
-<html lang="cs">
+<html lang="${HTML_LANG[lang] ?? HTML_LANG[DEFAULT_LANG]}">
   <body style="margin:0;padding:24px;background:#042b29;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#0b201d;">
     <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#fffaf0;border-radius:24px;padding:28px;">
       <tr><td>
-        <p style="margin:0 0 4px;font-size:15px;">Ahoj ${escapovat(jmeno)},</p>
-        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;">Tvůj kupón na ${SLEVA_PROCENT} % 🦠</h1>
+        <p style="margin:0 0 4px;font-size:15px;">${escapovat(t.email.kuponPozdrav(jmeno))}</p>
+        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;">${t.email.kuponNadpis}</h1>
         <p style="margin:0 0 20px;font-size:16px;">
-          Tvůj mikrobiom si řekl o <strong>${produkt.emoji} ${escapovat(produkt.nazev)}</strong>.
+          ${t.email.kuponUvodPred} <strong>${produkt.emoji} ${escapovat(produkt.nazev)}</strong>${t.email.kuponUvodPo}
         </p>
         <div style="background:#ffc247;border-radius:16px;padding:18px;text-align:center;">
-          <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Kód kupónu</p>
+          <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">${t.email.kuponKodLabel}</p>
           <p style="margin:0;font-size:28px;font-weight:800;letter-spacing:1px;">${kod}</p>
         </div>
         <p style="margin:20px 0;text-align:center;">
           <a href="${ESHOP_URL}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 26px;border-radius:14px;">
-            Nakoupit na wildandcoco.com
+            ${t.email.kuponTlacitko}
           </a>
         </p>
         <p style="margin:0 0 4px;font-size:13px;color:#0b201d;opacity:.7;">
-          Kód vlož v košíku na <a href="${ESHOP_URL}" style="color:#0e8781;">${ESHOP_URL.replace("https://", "")}</a>.
+          ${t.email.kuponVlozPred} <a href="${ESHOP_URL}" style="color:#0e8781;">${ESHOP_URL.replace("https://", "")}</a>${t.email.kuponVlozPo}
         </p>
         <p style="margin:0 0 20px;font-size:13px;color:#0b201d;opacity:.7;">${podminky}</p>
         <p style="margin:0;font-size:13px;color:#0b201d;opacity:.6;">Wild &amp; Coco · Longevity Bar</p>

@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import { LONGEVITY_BAR_CATALOG } from "../src/lib/catalog-longevity";
 import { WILD_COCO_CATALOG } from "../src/lib/catalog-wild-coco";
+import { cs } from "../src/lib/i18n/cs";
+import { en } from "../src/lib/i18n/en";
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -27,7 +29,11 @@ for (const href of [
 
 assert.match(homepage, /getSessionUser/);
 assert.match(homepage, /getEmailStatus/);
-assert.match(homepage, /Potvrď e-mail/);
+// Výzva k potvrzení e-mailu žije od 6. 8. 2026 ve slovníku — hlídá se české
+// znění i to, že ho rozcestník opravdu vykresluje.
+assert.equal(cs.rozcestnik.potvrdEmail, "Potvrď e-mail");
+assert.ok(en.rozcestnik.potvrdEmail.trim().length > 0, "chybí anglická výzva");
+assert.match(homepage, /t\.rozcestnik\.potvrdEmail/);
 assert.doesNotMatch(homepage, /ensureProfile\(/);
 
 assert.match(rewards, /ensureProfile\(/);

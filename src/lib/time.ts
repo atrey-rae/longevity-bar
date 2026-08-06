@@ -67,6 +67,17 @@ export function pragueDayRange(dateStr: string): { start: Date; end: Date } {
   };
 }
 
+/**
+ * Locale pro `Intl` podle jazyka rozhraní. Angličtina jede na `en-GB`: den
+ * napřed a 24hodinový čas, tedy stejné pořadí jako české formáty — host u baru
+ * nemusí přepínat hlavu mezi „8. 14.“ a „14. 8.“.
+ */
+const LOCALE: Record<string, string> = { cs: "cs-CZ", en: "en-GB" };
+
+function locale(lang: string | undefined): string {
+  return LOCALE[lang ?? "cs"] ?? "cs-CZ";
+}
+
 /** „14. 8. 2026“ */
 export function formatCzechDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -84,12 +95,20 @@ export function formatCzechDateLong(dateStr: string): string {
   return `${weekday} ${formatCzechDate(dateStr)}`;
 }
 
-/** „14. 8. 2026 18:42“ v pražském čase. */
-export function formatCzechDateTime(value: string | Date | null): string {
+/**
+ * „14. 8. 2026 18:42“ v pražském čase.
+ *
+ * `lang` je volitelný a výchozí `"cs"`, aby administrace i starší volání
+ * zůstaly beze změny; zákaznické obrazovky ho předávají podle zvoleného jazyka.
+ */
+export function formatCzechDateTime(
+  value: string | Date | null,
+  lang: string = "cs",
+): string {
   if (!value) return "—";
   const dt = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(dt.getTime())) return "—";
-  return new Intl.DateTimeFormat("cs-CZ", {
+  return new Intl.DateTimeFormat(locale(lang), {
     timeZone: TZ,
     day: "numeric",
     month: "numeric",
@@ -97,6 +116,18 @@ export function formatCzechDateTime(value: string | Date | null): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(dt);
+}
+
+/** Datum bez času podle jazyka rozhraní — „14. 8. 2026“ / „14/08/2026“. */
+export function formatDate(dateStr: string, lang: string = "cs"): string {
+  if (lang === "cs") return formatCzechDate(dateStr);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale(lang), {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Date.UTC(y, m - 1, d, 12)));
 }
 
 /** „18:42“ v pražském čase. */

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
+
 const STORAGE_PREFIX = "wc-longevity-install";
 const INSTALLED_KEY = `${STORAGE_PREFIX}:installed`;
 const SNOOZE_KEY = `${STORAGE_PREFIX}:snoozeUntil`;
@@ -69,6 +71,7 @@ function isSnoozed(): boolean {
 }
 
 export default function InstallPrompt() {
+  const t = useT();
   const [visible, setVisible] = useState(false);
   const [ios, setIos] = useState(false);
   const [androidManual, setAndroidManual] = useState(false);
@@ -213,16 +216,16 @@ export default function InstallPrompt() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-zapad-600">
-              Rychlejší příště
+              {t.instalace.eyebrow}
             </p>
-            <h2 id="install-title" className="mt-1">Přidat Longevity Bar na plochu?</h2>
+            <h2 id="install-title" className="mt-1">{t.instalace.nadpis}</h2>
           </div>
           <button
             ref={closeRef}
             type="button"
             onClick={snooze}
             className="grid min-h-11 min-w-11 place-items-center rounded-full bg-inkoust/10 text-xl font-black"
-            aria-label="Připomenout zítra"
+            aria-label={t.instalace.pripomenoutZitra}
           >
             ×
           </button>
@@ -233,32 +236,32 @@ export default function InstallPrompt() {
             <p className="mt-3 text-sm leading-relaxed text-inkoust/75">
               {ios ? (
                 inAppBrowser ? (
-                  <>Otevři stránku v Safari a tam klepni na <strong>Sdílet</strong> → <strong>Přidat na plochu</strong>.</>
+                  <>{t.instalace.iosVAplikaciPred} <strong>{t.instalace.iosSdilet}</strong> → <strong>{t.instalace.iosPridatNaPlochu}</strong>.</>
                 ) : (
-                  <>V Safari klepni na <strong>Sdílet</strong> a potom na <strong>Přidat na plochu</strong>.</>
+                  <>{t.instalace.iosSafariPred} <strong>{t.instalace.iosSdilet}</strong> {t.instalace.iosSafariMezi} <strong>{t.instalace.iosPridatNaPlochu}</strong>.</>
                 )
               ) : (
-                <>V nabídce prohlížeče (⋮) zvol <strong>Přidat na plochu</strong> nebo <strong>Instalovat aplikaci</strong>.</>
+                <>{t.instalace.androidPred} <strong>{t.instalace.iosPridatNaPlochu}</strong> {t.instalace.androidNebo} <strong>{t.instalace.androidInstalovat}</strong>.</>
               )}
             </p>
             {!inAppBrowser && (
               <button type="button" className="tlacitko-hlavni mt-4" onClick={alreadyInstalled}>
-                Už mám na ploše
+                {t.instalace.uzMamNaPlose}
               </button>
             )}
           </>
         ) : (
           <>
             <p className="mt-3 text-sm leading-relaxed text-inkoust/75">
-              Otevřeš věrnostní kartu jedním klepnutím a zůstaneš přihlášený.
+              {t.instalace.nativniPopis}
             </p>
             <button type="button" className="tlacitko-hlavni mt-4" onClick={install}>
-              Přidat aplikaci
+              {t.instalace.pridatAplikaci}
             </button>
           </>
         )}
         <button type="button" className="mt-3 w-full py-2 text-sm font-bold underline underline-offset-4" onClick={snooze}>
-          Teď ne — připomeň zítra
+          {t.instalace.tedNe}
         </button>
       </section>
     </div>

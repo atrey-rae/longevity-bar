@@ -2,19 +2,23 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import PrihlaseniFormular from "@/components/PrihlaseniFormular";
+import { getT } from "@/lib/i18n/server";
 import { bezpecnyNext, prvni } from "@/lib/navigation";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Přihlášení" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t.prihlaseni.titulek };
+}
 
 export default async function PrihlaseniPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const sp = await searchParams;
+  const [sp, { t }] = await Promise.all([searchParams, getT()]);
   const next = bezpecnyNext(prvni(sp.next));
   const chyba = prvni(sp.chyba);
 
@@ -30,13 +34,13 @@ export default async function PrihlaseniPage({
         <div className="mb-2 text-6xl animate-plovouci" aria-hidden>
           🥥
         </div>
-        <h1 className="text-stin">Přihlas se a sbírej razítka</h1>
+        <h1 className="text-stin">{t.prihlaseni.nadpis}</h1>
         <p className="mt-2 text-base text-kokos-50/85">
           {jdeOSken
-            ? "Ještě krok — po přihlášení otevřeme kartu a razítko připíšeme, pokud je QR kód platný právě dnes."
+            ? t.prihlaseni.podnadpisSken
             : jdeOOdmeny
-              ? "Po přihlášení otevřeme tvoji věrnostní kartu a všechny nasbírané odměny."
-              : "Za každá 4 razítka si vybereš odměnu zdarma."}
+              ? t.prihlaseni.podnadpisOdmeny
+              : t.prihlaseni.podnadpisObecny}
         </p>
       </div>
 
@@ -45,8 +49,7 @@ export default async function PrihlaseniPage({
           role="alert"
           className="rounded-xl bg-zapad-600/90 px-4 py-3 text-center text-sm font-bold text-white"
         >
-          Přihlášení přes Google se nedokončilo. Zkus to prosím znovu nebo
-          použij telefon.
+          {t.prihlaseni.chybaOauth}
         </p>
       )}
 
@@ -55,12 +58,11 @@ export default async function PrihlaseniPage({
       </div>
 
       <p className="text-center text-xs leading-relaxed text-kokos-50/60">
-        Přihlášením souhlasíš se zpracováním telefonu a následně zadaného e-mailu pro účely věrnostního
-        programu. Detaily v{" "}
+        {t.prihlaseni.souhlasPred}{" "}
         <a href="/pravidla" className="odkaz">
-          pravidlech
+          {t.prihlaseni.souhlasOdkaz}
         </a>
-        .
+        {t.prihlaseni.souhlasPo}
       </p>
     </div>
   );

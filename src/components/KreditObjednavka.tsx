@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { BarCreditPolozka } from "@/lib/healing-credit";
+import { useT } from "@/lib/i18n/client";
 import { korun } from "@/lib/text";
 
 const MAX_KUSU = 20;
@@ -24,6 +25,7 @@ export default function KreditObjednavka({
   katalog: BarCreditPolozka[];
   zbyva: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const [kusy, setKusy] = useState<Record<string, number>>({});
   const [stav, setStav] = useState<Stav>("klid");
@@ -74,10 +76,10 @@ export default function KreditObjednavka({
         return;
       }
       setStav("chyba");
-      setChyba(data.zprava ?? "Objednávku se nepodařilo odeslat. Zkus to znovu.");
+      setChyba(data.zprava ?? t.kredit.chybaObjednavky);
     } catch {
       setStav("chyba");
-      setChyba("Nemáš signál? Zkontroluj připojení a zkus to znovu.");
+      setChyba(t.spolecne.nemasSignal);
     }
   }
 
@@ -108,7 +110,7 @@ export default function KreditObjednavka({
                   type="button"
                   onClick={() => zmenit(polozka.id, -1)}
                   disabled={pocet === 0 || stav === "odesilam"}
-                  aria-label={`Ubrat ${polozka.n}`}
+                  aria-label={t.kredit.ubrat(polozka.n)}
                   className="grid h-11 w-11 place-items-center rounded-full border border-white/25 bg-white/10 text-2xl font-black text-kokos-50 transition disabled:opacity-30"
                 >
                   −
@@ -120,7 +122,7 @@ export default function KreditObjednavka({
                   type="button"
                   onClick={() => zmenit(polozka.id, 1)}
                   disabled={pocet >= MAX_KUSU || stav === "odesilam"}
-                  aria-label={`Přidat ${polozka.n}`}
+                  aria-label={t.kredit.pridat(polozka.n)}
                   className="grid h-11 w-11 place-items-center rounded-full border border-mango-400/70 bg-mango-400/20 text-2xl font-black text-mango-300 transition disabled:opacity-30"
                 >
                   +
@@ -133,7 +135,7 @@ export default function KreditObjednavka({
 
       <div className="flex items-baseline justify-between gap-3 border-t border-white/10 px-1 pt-3">
         <span className="text-xs font-bold uppercase tracking-widest text-kokos-50/70">
-          Vybráno
+          {t.kredit.vybrano}
         </span>
         <span
           className={`text-lg font-black tabular-nums ${
@@ -146,7 +148,7 @@ export default function KreditObjednavka({
 
       {prekroceno && (
         <p role="alert" className="text-center text-xs font-bold text-zapad-400">
-          To je víc, než ti zbývá ({korun(zbyva)}). Uber prosím něco z výběru.
+          {t.kredit.prekroceno(korun(zbyva))}
         </p>
       )}
 
@@ -158,7 +160,7 @@ export default function KreditObjednavka({
            blok při „nic nevybráno“ křičel a přitom nešel zmáčknout. */
         className="tlacitko-hlavni disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-kokos-50/50 disabled:shadow-none"
       >
-        {stav === "odesilam" ? "Objednávám…" : "Objednat"}
+        {stav === "odesilam" ? t.kredit.objednavam : t.kredit.objednat}
       </button>
 
       {chyba && (

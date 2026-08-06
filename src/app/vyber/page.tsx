@@ -4,16 +4,20 @@ import { redirect } from "next/navigation";
 
 import Konfety from "@/components/Konfety";
 import VyberProduktuGrid from "@/components/VyberProduktuGrid";
-import { CATEGORY_EMOJI, CATEGORY_LABEL_LONG } from "@/lib/loyalty";
+import { getT } from "@/lib/i18n/server";
+import { CATEGORY_EMOJI } from "@/lib/loyalty";
 import { getLoyaltyState, listActiveProducts } from "@/lib/loyalty-server";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Vyber si odměnu" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t.vyber.titulek };
+}
 
 export default async function VyberPage() {
-  const user = await getSessionUser();
+  const [{ t }, user] = await Promise.all([getT(), getSessionUser()]);
   if (!user) redirect("/prihlaseni?next=/vyber");
 
   const stav = await getLoyaltyState(user.id);
@@ -33,21 +37,18 @@ export default async function VyberPage() {
         <p className="text-6xl animate-plovouci" aria-hidden>
           {CATEGORY_EMOJI[odmena.category]}
         </p>
-        <h1 className="mt-2 text-stin">Vyhráváš! Vyber si:</h1>
+        <h1 className="mt-2 text-stin">{t.vyber.nadpis}</h1>
         <p className="mt-1 text-base font-semibold text-mango-400">
-          {CATEGORY_LABEL_LONG[odmena.category]}
+          {t.vernost.kategorieDlouhe[odmena.category]}
         </p>
       </div>
 
       <VyberProduktuGrid produkty={produkty} />
 
-      <p className="text-center text-xs text-kokos-50/60">
-        Vybíráš jen z toho, co je právě skladem. Po výběru ukážeš obrazovku
-        obsluze u pokladny.
-      </p>
+      <p className="text-center text-xs text-kokos-50/60">{t.vyber.poznamka}</p>
 
       <Link href="/odmeny" className="tlacitko-vedlejsi">
-        Zpět na kartu
+        {t.spolecne.zpetNaKartu}
       </Link>
     </div>
   );

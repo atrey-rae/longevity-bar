@@ -14,7 +14,10 @@
  *   8. obrazovka „Longevity profil“ má personu, 2–4 osobní postřehy a neprázdné
  *      zdůvodnění nabídky,
  *   9. žádný text vyhodnocení nepoužívá zdravotní tvrzení (allowlist zakázaných
- *      slov níž) — právní rámec z briefu 5. 8. 2026.
+ *      slov níž) — právní rámec z briefu 5. 8. 2026,
+ *  10. totéž platí pro anglickou mutaci: pro každou kombinaci se skládá i
+ *      `sestavitVyhodnoceni(…, "en")` a kontroluje se proti anglickému
+ *      seznamu zakázaných slov (zadání 6. 8. 2026).
  *
  * Spuštění: `npx tsx scripts/check-kviz-profil.ts`
  */
@@ -22,7 +25,9 @@ import { PRODUKTY } from "../src/lib/kviz";
 import { PROFIL_OTAZKY, PROFILY, vyhodnotitProfil } from "../src/lib/kviz-profil";
 import {
   PERSONY,
+  PERSONY_EN,
   VYHODNOCENI_TEXTY,
+  VYHODNOCENI_TEXTY_EN,
   sestavitPostrehy,
   sestavitVyhodnoceni,
 } from "../src/lib/kviz-profil-vyhodnoceni";
@@ -48,9 +53,24 @@ const ZAKAZANA_SLOVA = [
   "probiotik",
 ];
 
-function zakazanaSlovaV(texty: string[]): string[] {
+/**
+ * Anglický protějšek. Od 6. 8. 2026 má kvíz i anglickou mutaci a stejné právní
+ * pravidlo platí pro obě. Pozor na podřetězce: `heal` chytí i „healthy“
+ * a „healing“, `cure` i „secure“ — je to záměr, ne chyba.
+ */
+const ZAKAZANA_SLOVA_EN = [
+  "cure",
+  "heal",
+  "disease",
+  "diagnos",
+  "allerg",
+  "intoleran",
+  "probiotic",
+];
+
+function zakazanaSlovaV(texty: string[], slova = ZAKAZANA_SLOVA): string[] {
   const spojene = texty.join("  ").toLowerCase();
-  return ZAKAZANA_SLOVA.filter((slovo) => spojene.includes(slovo));
+  return slova.filter((slovo) => spojene.includes(slovo));
 }
 
 const SLUGY_V_KATALOGU = new Set(PRODUKTY.map((p) => p.slug));
@@ -121,6 +141,37 @@ const zakazanaVeStatickych = zakazanaSlovaV(staticke);
 if (zakazanaVeStatickych.length > 0) {
   throw new Error(
     `statické texty vyhodnocení obsahují zakázaná slova: ${zakazanaVeStatickych.join(", ")}`,
+  );
+}
+
+/* --- Totéž anglicky: persony i popisky UI mají vlastní jazykový balík ------ */
+if (PERSONY_EN.length !== PERSONY.length) {
+  throw new Error(`anglických person je ${PERSONY_EN.length}, českých ${PERSONY.length}`);
+}
+for (const persona of PERSONY) {
+  const anglicka = PERSONY_EN.find((p) => p.profilId === persona.profilId);
+  if (!anglicka) {
+    throw new Error(`chybí anglická persona pro profil ${persona.profilId}`);
+  }
+  for (const [pole, hodnota] of Object.entries({
+    persona: anglicka.persona,
+    esence: anglicka.esence,
+    pribeh: anglicka.pribeh,
+    procProdukty: anglicka.procProdukty,
+  })) {
+    if (hodnota.trim().length === 0) {
+      throw new Error(`${persona.profilId}: prázdné anglické pole „${pole}"`);
+    }
+  }
+}
+const statickeEn = [
+  ...Object.values(VYHODNOCENI_TEXTY_EN),
+  ...PERSONY_EN.flatMap((p) => [p.persona, p.esence, p.pribeh, p.procProdukty]),
+];
+const zakazanaVeStatickychEn = zakazanaSlovaV(statickeEn, ZAKAZANA_SLOVA_EN);
+if (zakazanaVeStatickychEn.length > 0) {
+  throw new Error(
+    `anglické statické texty obsahují zakázaná slova: ${zakazanaVeStatickychEn.join(", ")}`,
   );
 }
 
@@ -260,6 +311,39 @@ function projdi(q: number): void {
     if (zakazana.length > 0) {
       chyby.push(`${kde}: zdravotní tvrzení v textu — ${zakazana.join(", ")}`);
     }
+
+    /* --- Anglická mutace téhož vyhodnocení ------------------------------- */
+    const hodnoceniEn = sestavitVyhodnoceni(vybrane, "en");
+    if (!hodnoceniEn) {
+      chyby.push(`${kde}: anglické vyhodnocení nevzniklo`);
+      return;
+    }
+    if (hodnoceniEn.postrehy.length !== hodnoceni.postrehy.length) {
+      chyby.push(
+        `${kde}: anglických postřehů ${hodnoceniEn.postrehy.length}, českých ${hodnoceni.postrehy.length}`,
+      );
+    }
+    if (hodnoceniEn.persony.length !== hodnoceni.persony.length) {
+      chyby.push(`${kde}: anglických person nesedí počet`);
+    }
+    for (const prazdne of ["uvod", "pribeh", "procProdukty"] as const) {
+      if (hodnoceniEn[prazdne].trim().length === 0) {
+        chyby.push(`${kde}: prázdné anglické pole „${prazdne}"`);
+      }
+    }
+    const zakazanaEn = zakazanaSlovaV(
+      [
+        hodnoceniEn.personaNadpis,
+        hodnoceniEn.uvod,
+        hodnoceniEn.pribeh,
+        hodnoceniEn.procProdukty,
+        ...hodnoceniEn.postrehy.map((p) => p.text),
+      ],
+      ZAKAZANA_SLOVA_EN,
+    );
+    if (zakazanaEn.length > 0) {
+      chyby.push(`${kde}: zdravotní tvrzení v EN textu — ${zakazanaEn.join(", ")}`);
+    }
     return;
   }
 
@@ -309,5 +393,5 @@ console.log(
     `(${MIN}–${MAX} produktů, unikátní, z katalogu, profily P1–P10) · ` +
     `remíz ${remiz} (nejvíc ${maxRemizy} profilů) · max produktů ${maxProduktu} · determinismus OK · ` +
     `vyhodnocení: ${PERSONY.length}/${PROFILY.length} person, postřehů ${minPostrehu}–${maxPostrehu}, ` +
-    `bez zdravotních tvrzení (${ZAKAZANA_SLOVA.length} hlídaných slov)`,
+    `bez zdravotních tvrzení (${ZAKAZANA_SLOVA.length} slov v cs, ${ZAKAZANA_SLOVA_EN.length} v en)`,
 );

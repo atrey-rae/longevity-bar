@@ -24,6 +24,9 @@ if (typeof window !== "undefined") {
   );
 }
 
+import { getDict } from "./i18n";
+import { DEFAULT_LANG, type Lang } from "./i18n/lang";
+
 const CASOVY_LIMIT_MS = 6000;
 
 /** Kolik různých položek smí jedna objednávka obsahovat a kolik kusů z jedné. */
@@ -80,8 +83,14 @@ export type VysledekKreditu =
 
 export type ObjednavkaPolozka = { id: string; qty: number };
 
-/** Hláška pro hosta — nikdy neobsahuje detail z bridge ani konfiguraci. */
-const OBECNA_CHYBA = "Kredit se teď nepodařilo načíst. Zkus to prosím za chvíli.";
+/**
+ * Hláška pro hosta — nikdy neobsahuje detail z bridge ani konfiguraci.
+ * Bere se ze slovníku, aby anglicky mluvící host nedostal českou větu; české
+ * znění je v `i18n/cs` doslova stejné jako dřív.
+ */
+function obecnaChyba(lang: Lang): string {
+  return getDict(lang).chyby.kreditNedostupny;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Konfigurace                                                                 */
@@ -229,16 +238,14 @@ type Volani = {
   fetchImpl: FetchLike;
 };
 
-async function zavolat({
-  cesta,
-  metoda,
-  telo,
-  fetchImpl,
-}: Volani): Promise<VysledekKreditu> {
+async function zavolat(
+  { cesta, metoda, telo, fetchImpl }: Volani,
+  lang: Lang = DEFAULT_LANG,
+): Promise<VysledekKreditu> {
   const config = konfigurace();
   if (!config) {
     console.warn("[kredit] HEALING_CREDIT_BRIDGE_URL/HEALING_BRIDGE_SECRET chybí.");
-    return { ok: false, zprava: OBECNA_CHYBA };
+    return { ok: false, zprava: obecnaChyba(lang) };
   }
 
   try {
@@ -262,14 +269,17 @@ async function zavolat({
       // když je krátká a čitelná — jinak jde obecná.
       return {
         ok: false,
-        zprava: duvod.length <= 120 && !duvod.startsWith("HTTP") ? duvod : OBECNA_CHYBA,
+        zprava:
+          duvod.length <= 120 && !duvod.startsWith("HTTP")
+            ? duvod
+            : obecnaChyba(lang),
       };
     }
 
     return { ok: true, stav: parsovatStavKreditu(data) };
   } catch (e) {
     console.warn(`[kredit] bridge nedostupný (${metoda} ${cesta}):`, e);
-    return { ok: false, zprava: OBECNA_CHYBA };
+    return { ok: false, zprava: obecnaChyba(lang) };
   }
 }
 
@@ -315,18 +325,22 @@ export async function objednatZKreditu(
   phone: string,
   items: ObjednavkaPolozka[],
   fetchImpl: FetchLike = fetch,
+  lang: Lang = DEFAULT_LANG,
 ): Promise<VysledekKreditu> {
   const telefon = platnyTelefon(phone);
-  if (!telefon) return { ok: false, zprava: OBECNA_CHYBA };
+  if (!telefon) return { ok: false, zprava: obecnaChyba(lang) };
   if (normalizovatPolozky(items) === null) {
-    return { ok: false, zprava: "Objednávka nedává smysl. Zkus výběr znovu." };
+    return { ok: false, zprava: getDict(lang).chyby.objednavkaNesmysl };
   }
-  return zavolat({
-    cesta: "/order",
-    metoda: "POST",
-    telo: { phone: telefon, items },
-    fetchImpl,
-  });
+  return zavolat(
+    {
+      cesta: "/order",
+      metoda: "POST",
+      telo: { phone: telefon, items },
+      fetchImpl,
+    },
+    lang,
+  );
 }
 
 /** Výdej objednávky u baru (obsluha, podržení 3 s). */
@@ -334,14 +348,18 @@ export async function vydatObjednavku(
   phone: string,
   orderId: string,
   fetchImpl: FetchLike = fetch,
+  lang: Lang = DEFAULT_LANG,
 ): Promise<VysledekKreditu> {
   const telefon = platnyTelefon(phone);
   const id = text(orderId);
-  if (!telefon || !id) return { ok: false, zprava: OBECNA_CHYBA };
-  return zavolat({
-    cesta: "/issue",
-    metoda: "POST",
-    telo: { phone: telefon, orderId: id },
-    fetchImpl,
-  });
+  if (!telefon || !id) return { ok: false, zprava: obecnaChyba(lang) };
+  return zavolat(
+    {
+      cesta: "/issue",
+      metoda: "POST",
+      telo: { phone: telefon, orderId: id },
+      fetchImpl,
+    },
+    lang,
+  );
 }

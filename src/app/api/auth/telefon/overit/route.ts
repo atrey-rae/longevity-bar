@@ -1,19 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getT } from "@/lib/i18n/server";
 import { bezpecnyNext } from "@/lib/navigation";
 import { verifyPhoneCode } from "@/lib/phone-auth-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const { t } = await getT();
   let body: { challengeId?: unknown; phone?: unknown; code?: unknown; next?: unknown };
   try {
     body = await request.json() as typeof body;
   } catch {
-    return NextResponse.json({ error: "Neplatný požadavek." }, { status: 400 });
+    return NextResponse.json({ error: t.chyby.neplatnyPozadavek }, { status: 400 });
   }
   if (typeof body.challengeId !== "string" || typeof body.phone !== "string" || typeof body.code !== "string") {
-    return NextResponse.json({ error: "Kód nesedí nebo vypršel." }, { status: 400 });
+    return NextResponse.json({ error: t.chyby.kodNesedi }, { status: 400 });
   }
   try {
     const result = await verifyPhoneCode({
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     });
     if (!result.ok) {
       return NextResponse.json(
-        { error: result.reason === "attempts" ? "Příliš mnoho pokusů. Nech si poslat nový kód." : "Kód nesedí nebo vypršel." },
+        { error: result.reason === "attempts" ? t.chyby.prilisMnohoPokusu : t.chyby.kodNesedi },
         { status: 401 },
       );
     }
@@ -33,6 +35,6 @@ export async function POST(request: NextRequest) {
       { headers: { "cache-control": "no-store" } },
     );
   } catch {
-    return NextResponse.json({ error: "Ověření se nepodařilo. Zkus to znovu." }, { status: 503 });
+    return NextResponse.json({ error: t.chyby.overeniSelhalo }, { status: 503 });
   }
 }

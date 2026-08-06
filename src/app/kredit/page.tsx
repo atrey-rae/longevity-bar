@@ -7,13 +7,18 @@ import VydatTlacitko from "@/components/VydatTlacitko";
 import ZiveHodiny from "@/components/ZiveHodiny";
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import type { BarCreditObjednavka } from "@/lib/healing-credit";
+import { getT } from "@/lib/i18n/server";
+import type { Dict } from "@/lib/i18n/types";
 import { getSessionUser } from "@/lib/supabase/server";
 import { korun } from "@/lib/text";
 import { formatCzechDateTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Kredit na Longevity Baru" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t.kredit.titulek };
+}
 
 /**
  * Kredit hosta (typ HOST z Healing.app) na Longevity Baru.
@@ -23,7 +28,7 @@ export const metadata: Metadata = { title: "Kredit na Longevity Baru" };
  * a nic nepředstírá (fail-closed, viz `lib/healing-credit.ts`).
  */
 export default async function KreditPage() {
-  const user = await getSessionUser();
+  const [{ lang, t }, user] = await Promise.all([getT(), getSessionUser()]);
   if (!user) redirect(`/prihlaseni?next=${encodeURIComponent("/kredit")}`);
 
   const { stav } = await barCreditProUzivatele(user.id);
@@ -35,15 +40,13 @@ export default async function KreditPage() {
           <p className="text-5xl" aria-hidden>
             🫙
           </p>
-          <h1 className="text-stin">Kredit tu na tebe nečeká</h1>
+          <h1 className="text-stin">{t.kredit.zadnyNadpis}</h1>
           <p className="text-sm leading-relaxed text-kokos-50/80">
-            Kredit na Longevity Baru mají hosté festivalu, kterým ho přidělil
-            tým v Healing appce. Když si myslíš, že tam tvůj je, ozvi se
-            obsluze u baru.
+            {t.kredit.zadnyPopis}
           </p>
         </div>
         <Link href="/" className="tlacitko-vedlejsi">
-          Zpět na rozcestník
+          {t.spolecne.zpetNaRozcestnik}
         </Link>
       </div>
     );
@@ -57,7 +60,7 @@ export default async function KreditPage() {
     <div className="obal space-y-5">
       <section className="rounded-[2rem] border border-white/15 bg-inkoust/[0.45] px-5 pb-6 pt-7 shadow-karta">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-mango-400">
-          Kredit na Longevity Baru
+          {t.kredit.eyebrow}
         </p>
         <p className="mt-3 text-[2.6rem] font-black leading-none tabular-nums text-kokos-50">
           {korun(credit.remaining)}
@@ -78,7 +81,7 @@ export default async function KreditPage() {
           </div>
         )}
         <p className="mt-2.5 text-sm font-semibold tabular-nums text-kokos-50/80">
-          zbývá z {korun(credit.total)} · utraceno {korun(credit.spent)}
+          {t.kredit.zustatek(korun(credit.total), korun(credit.spent))}
         </p>
       </section>
 
@@ -86,11 +89,11 @@ export default async function KreditPage() {
         <section className="space-y-4">
           <h2 className="px-1 text-center text-sm font-black uppercase tracking-widest text-mango-400">
             {kCekani.length === 1
-              ? "Ukaž obsluze u baru"
-              : "Ukaž obsluze u baru (čeká víc objednávek)"}
+              ? t.kredit.ukazObsluze
+              : t.kredit.ukazObsluzeVice}
           </h2>
           {kCekani.map((objednavka) => (
-            <Vstupenka key={objednavka.id} objednavka={objednavka} />
+            <Vstupenka key={objednavka.id} objednavka={objednavka} t={t} />
           ))}
         </section>
       )}
@@ -102,20 +105,22 @@ export default async function KreditPage() {
         <section className="space-y-3">
           {/* O stupeň silnější než „Už vydáno“: tohle je pozvánka k akci,
               historie je jen archiv. Rodina štítku zůstává stejná. */}
-          <h2 className="stitek-sekce text-[0.78rem] text-kokos-50">Co si dáš?</h2>
+          <h2 className="stitek-sekce text-[0.78rem] text-kokos-50">
+            {t.kredit.coSiDas}
+          </h2>
           <KreditObjednavka katalog={catalog} zbyva={credit.remaining} />
         </section>
       )}
 
       {catalog.length > 0 && credit.remaining <= 0 && (
         <p className="karta text-center text-sm font-semibold text-kokos-50/80">
-          Kredit máš vyčerpaný. Díky, že jsi ho utratil u nás!
+          {t.kredit.vycerpano}
         </p>
       )}
 
       {vydane.length > 0 && (
         <section className="karta space-y-2.5">
-          <h2 className="stitek-sekce">Už vydáno</h2>
+          <h2 className="stitek-sekce">{t.kredit.uzVydano}</h2>
           <ul className="space-y-2">
             {vydane.map((objednavka) => (
               <li
@@ -124,10 +129,10 @@ export default async function KreditPage() {
               >
                 <span className="min-w-0">
                   <span className="block font-bold text-kokos-50">
-                    {shrnutiPolozek(objednavka)}
+                    {shrnutiPolozek(objednavka, t)}
                   </span>
                   <span className="block text-xs text-kokos-50/60">
-                    {formatCzechDateTime(objednavka.issuedAt)}
+                    {formatCzechDateTime(objednavka.issuedAt, lang)}
                   </span>
                 </span>
                 <span className="shrink-0 font-black tabular-nums text-kokos-50/80">
@@ -140,15 +145,15 @@ export default async function KreditPage() {
       )}
 
       <Link href="/" className="tlacitko-vedlejsi">
-        Zpět na rozcestník
+        {t.spolecne.zpetNaRozcestnik}
       </Link>
     </div>
   );
 }
 
 /** „2× Kokosová voda · 1× Cocofir“ — bez cen, ty jsou v součtu. */
-function shrnutiPolozek(objednavka: BarCreditObjednavka): string {
-  if (objednavka.items.length === 0) return "Objednávka z kreditu";
+function shrnutiPolozek(objednavka: BarCreditObjednavka, t: Dict): string {
+  if (objednavka.items.length === 0) return t.kredit.objednavkaZKreditu;
   return objednavka.items.map((radek) => `${radek.qty}× ${radek.n}`).join(" · ");
 }
 
@@ -156,7 +161,13 @@ function shrnutiPolozek(objednavka: BarCreditObjednavka): string {
  * Živá vstupenka na výdej — stejný vzor jako u věrnostní odměny: běžící
  * hodiny a pruh dokazují obsluze, že nejde o screenshot.
  */
-function Vstupenka({ objednavka }: { objednavka: BarCreditObjednavka }) {
+function Vstupenka({
+  objednavka,
+  t,
+}: {
+  objednavka: BarCreditObjednavka;
+  t: Dict;
+}) {
   return (
     <div className="zivy-preliv rounded-[2rem] p-1.5 shadow-karta">
       <div className="relative overflow-hidden rounded-[1.6rem] bg-inkoust/90 px-5 py-7">
@@ -165,7 +176,7 @@ function Vstupenka({ objednavka }: { objednavka: BarCreditObjednavka }) {
           aria-hidden
         />
         <p className="relative text-center text-xs font-bold uppercase tracking-widest text-white/60">
-          Objednávka z kreditu
+          {t.kredit.objednavkaZKreditu}
         </p>
         <ul className="relative mt-3 space-y-1 text-center">
           {objednavka.items.map((radek) => (
@@ -195,8 +206,7 @@ function Vstupenka({ objednavka }: { objednavka: BarCreditObjednavka }) {
             telo={{ orderId: objednavka.id }}
           />
           <p className="mt-2.5 text-center text-xs leading-relaxed text-white/60">
-            Tlačítko mačká jen obsluha. Když ho zmáčkneš sám, objednávka se
-            odepíše z kreditu.
+            {t.kredit.jenObsluha}
           </p>
         </div>
       </div>

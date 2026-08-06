@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
+
 const DRZENI_MS = 3000;
 
 type Stav = "klid" | "drzim" | "odesilam" | "hotovo" | "chyba";
@@ -27,6 +29,7 @@ export default function VydatTlacitko({
   telo,
   vyzadujePin = false,
 }: VydatProps) {
+  const t = useT();
   const router = useRouter();
   const [stav, setStav] = useState<Stav>("klid");
   const [postup, setPostup] = useState(0);
@@ -70,10 +73,10 @@ export default function VydatTlacitko({
       }
 
       setStav("chyba");
-      setChyba(data.zprava ?? "Výdej se nepodařil. Zkus to prosím znovu.");
+      setChyba(data.zprava ?? t.vydat.chyba);
     } catch {
       setStav("chyba");
-      setChyba("Nemáš signál? Zkontroluj připojení a zkus to znovu.");
+      setChyba(t.spolecne.nemasSignal);
     } finally {
       setPostup(0);
     }
@@ -112,7 +115,7 @@ export default function VydatTlacitko({
   if (stav === "hotovo") {
     return (
       <div className="rounded-2xl bg-list-500 px-6 py-5 text-center text-xl font-black uppercase tracking-wide text-white">
-        Vydáno ✓
+        {t.vydat.vydanoHotovo}
       </div>
     );
   }
@@ -125,7 +128,7 @@ export default function VydatTlacitko({
       {vyzadujePin && (
         <label className="block">
           <span className="mb-1 block text-sm font-bold uppercase tracking-wider text-white/80">
-            PIN obsluhy
+            {t.vydat.pinObsluhy}
           </span>
           <input
             className="vstup text-center tracking-[0.5em]"
@@ -149,7 +152,7 @@ export default function VydatTlacitko({
         onContextMenu={(e) => e.preventDefault()}
         className="relative w-full select-none overflow-hidden rounded-2xl border-4 border-white/70 bg-inkoust/70 px-6 py-6 text-center disabled:opacity-70"
         style={{ touchAction: "none", WebkitUserSelect: "none" }}
-        aria-label="Podrž 3 sekundy pro výdej odměny"
+        aria-label={t.vydat.ariaPodrzet}
       >
         <span
           className="absolute inset-y-0 left-0 bg-gradient-to-r from-list-500 to-list-600 transition-[width] duration-75"
@@ -157,12 +160,10 @@ export default function VydatTlacitko({
           aria-hidden
         />
         <span className="relative block text-2xl font-black uppercase tracking-widest text-white">
-          {stav === "odesilam" ? "Zpracovávám…" : "Vydat"}
+          {stav === "odesilam" ? t.vydat.zpracovavam : t.vydat.vydat}
         </span>
         <span className="relative mt-1 block text-xs font-bold uppercase tracking-widest text-white/75">
-          {stav === "drzim"
-            ? `Drž ještě ${zbyva} s`
-            : "Jen obsluha · podrž 3 sekundy"}
+          {stav === "drzim" ? t.vydat.drzJeste(zbyva) : t.vydat.jenObsluha}
         </span>
       </button>
 
