@@ -27,6 +27,11 @@ export function zakaznici(n: number): string {
   return `${n} ${tvar(n, "zákazník", "zákazníci", "zákazníků")}`;
 }
 
+/** 1 položka · 3 položky · 5 položek */
+export function polozky(n: number): string {
+  return `${n} ${tvar(n, "položka", "položky", "položek")}`;
+}
+
 /**
  * Česká sazba pro UI — vymění obyčejnou mezeru za nezlomitelnou tam, kde by
  * zlom vypadal jako chyba („21 %“ na dvou řádcích, rozpadlé datum).

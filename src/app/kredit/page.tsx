@@ -3,13 +3,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import KreditObjednavka from "@/components/KreditObjednavka";
-import VydatTlacitko from "@/components/VydatTlacitko";
+import VydejKreditu from "@/components/VydejKreditu";
 import ZiveHodiny from "@/components/ZiveHodiny";
 import ZkusitZnovu from "@/components/ZkusitZnovu";
+import ZrusitObjednavku from "@/components/ZrusitObjednavku";
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import type { BarCreditObjednavka } from "@/lib/healing-credit";
 import { getT } from "@/lib/i18n/server";
 import type { Dict } from "@/lib/i18n/types";
+import { VSTUPENKY_ID, predvyplneneZalohy } from "@/lib/kredit-ui";
 import { getSessionUser } from "@/lib/supabase/server";
 import { korun } from "@/lib/text";
 import { formatCzechDateTime } from "@/lib/time";
@@ -108,8 +110,11 @@ export default async function KreditPage() {
         </p>
       </section>
 
+      {/* `id` je kotva, na kterou po objednání odscrolluje `KreditObjednavka`.
+          Bez ní host po stisku „Objednat“ zůstal viset dole u katalogu
+          a nově vzniklou vstupenku nad sebou vůbec neviděl. */}
       {kCekani.length > 0 && (
-        <section className="space-y-4">
+        <section id={VSTUPENKY_ID} className="scroll-mt-20 space-y-4">
           <h2 className="px-1 text-center text-sm font-black uppercase tracking-widest text-mango-400">
             {kCekani.length === 1
               ? t.kredit.ukazObsluze
@@ -141,21 +146,32 @@ export default async function KreditPage() {
         </p>
       )}
 
+      {/* Historie je archiv, ne akce: sbalená, ať na obrazovce zůstane vidět
+          živá vstupenka a výběr. Po rozkliknutí jen kompaktní řádky — rozpad
+          položek patří na vstupenku, tady by z historie udělal zeď textu. */}
       {vydane.length > 0 && (
-        <section className="karta space-y-2.5">
-          <h2 className="stitek-sekce">{t.kredit.uzVydano}</h2>
-          <ul className="space-y-2">
+        <details className="karta">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-black uppercase tracking-[0.14em] text-kokos-50/80 transition hover:text-kokos-50">
+            {t.kredit.historieNadpis}
+            <span
+              aria-hidden
+              className="shrink-0 text-lg font-normal leading-none text-kokos-50/60"
+            >
+              ▾
+            </span>
+          </summary>
+          <ul className="mt-3.5 space-y-2">
             {vydane.map((objednavka) => (
               <li
                 key={objednavka.id}
-                className="flex items-start justify-between gap-3 border-t border-white/10 pt-2 text-sm first:border-0 first:pt-0"
+                className="flex items-baseline justify-between gap-3 border-t border-white/10 pt-2 text-sm first:border-0 first:pt-0"
               >
                 <span className="min-w-0">
-                  <span className="block font-bold text-kokos-50">
-                    {shrnutiPolozek(objednavka, t)}
-                  </span>
-                  <span className="block text-xs text-kokos-50/60">
+                  <span className="block font-semibold text-kokos-50/90">
                     {formatCzechDateTime(objednavka.issuedAt, lang)}
+                  </span>
+                  <span className="block text-xs tabular-nums text-kokos-50/60">
+                    {t.kredit.historiePocet(pocetKusu(objednavka))}
                   </span>
                 </span>
                 <span className="shrink-0 font-black tabular-nums text-kokos-50/80">
@@ -164,7 +180,7 @@ export default async function KreditPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </details>
       )}
 
       <Link href="/" className="tlacitko-vedlejsi">
@@ -174,10 +190,9 @@ export default async function KreditPage() {
   );
 }
 
-/** „2× Kokosová voda · 1× Cocofir“ — bez cen, ty jsou v součtu. */
-function shrnutiPolozek(objednavka: BarCreditObjednavka, t: Dict): string {
-  if (objednavka.items.length === 0) return t.kredit.objednavkaZKreditu;
-  return objednavka.items.map((radek) => `${radek.qty}× ${radek.n}`).join(" · ");
+/** Kolik kusů celkem objednávka nesla — jediné číslo, které historie potřebuje. */
+function pocetKusu(objednavka: BarCreditObjednavka): number {
+  return objednavka.items.reduce((celkem, radek) => celkem + radek.qty, 0);
 }
 
 /**
@@ -224,13 +239,22 @@ function Vstupenka({
             zůstat u své objednávky (může jich čekat víc), linku proto dělá
             oddělovač uvnitř lístku. */}
         <div className="relative mt-6 border-t border-white/10 pt-5">
-          <VydatTlacitko
-            endpoint="/api/kredit/vydat"
-            telo={{ orderId: objednavka.id }}
+          <VydejKreditu
+            orderId={objednavka.id}
+            vychoziZalohy={
+              objednavka.deposits ?? predvyplneneZalohy(objednavka.items)
+            }
           />
           <p className="mt-2.5 text-center text-xs leading-relaxed text-white/60">
             {t.kredit.jenObsluha}
           </p>
+
+          {/* Únikový východ pro hosta, který si to rozmyslel. Záměrně BEZ
+              plochy a barvy — vedle VYDAT nesmí působit jako rovnocenná
+              volba, jinak by obsluha u pultu mačkala špatné tlačítko. */}
+          <div className="mt-4">
+            <ZrusitObjednavku orderId={objednavka.id} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,15 +1,42 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import type { BarCreditPolozka } from "@/lib/healing-credit";
 import { useT } from "@/lib/i18n/client";
+import { VSTUPENKY_ID } from "@/lib/kredit-ui";
 import { korun } from "@/lib/text";
 
 const MAX_KUSU = 20;
 
-type Stav = "klid" | "odesilam" | "chyba";
+type Stav = "klid" | "odesilam" | "hotovo" | "chyba";
+
+/** Kolik snímků čekat, než se po refreshi objeví vstupenka (~1 s při 60 fps). */
+const MAX_SNIMKU_NA_VSTUPENKU = 60;
+
+/**
+ * Odscrolluje na sekci s živými vstupenkami.
+ *
+ * Sekce vzniká až v SERVER komponentě po `router.refresh()`, takže v okamžiku
+ * volání ještě nemusí být v DOM — proto se na ni pár snímků počká.
+ * `prefers-reduced-motion` vypíná plynulé posouvání (stejné pravidlo jako
+ * v `globals.css`).
+ */
+function odscrollujNaVstupenku(pokus = 0): void {
+  const cil = document.getElementById(VSTUPENKY_ID);
+  if (!cil) {
+    if (pokus < MAX_SNIMKU_NA_VSTUPENKU) {
+      requestAnimationFrame(() => odscrollujNaVstupenku(pokus + 1));
+    }
+    return;
+  }
+  const omezitPohyb = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  cil.scrollIntoView({
+    behavior: omezitPohyb ? "auto" : "smooth",
+    block: "start",
+  });
+}
 
 /**
  * Výběr položek z kreditu — plusy/minusy a jedno tlačítko „Objednat“.
@@ -30,6 +57,24 @@ export default function KreditObjednavka({
   const [kusy, setKusy] = useState<Record<string, number>>({});
   const [stav, setStav] = useState<Stav>("klid");
   const [chyba, setChyba] = useState<string | null>(null);
+  // `router.refresh()` je „fire and forget“. V přechodu ale víme, KDY doběhl —
+  // teprve pak má smysl hledat vstupenku v DOM.
+  const [obnovuji, spustitObnovu] = useTransition();
+
+  /**
+   * Bez tohohle efektu byl na produkci bug: objednávka se založila, server
+   * komponenta se opravdu překreslila a vstupenka VZNIKLA — jenže nad
+   * katalogem. Prohlížeč po vložení obsahu nad viewportem dorovná scroll
+   * (scroll anchoring), takže host zůstal viset u tlačítka „Objednat“
+   * a vstupenka mu skončila ~650 px nad obrazovkou. Vypadalo to, že se
+   * nestalo nic. Proto po dokončení obnovy sjedeme na vstupenku.
+   */
+  useEffect(() => {
+    if (stav !== "hotovo" || obnovuji) return;
+    odscrollujNaVstupenku();
+  }, [stav, obnovuji]);
+
+  const naVstupenku = useCallback(() => odscrollujNaVstupenku(), []);
 
   const soucet = useMemo(
     () =>
@@ -44,6 +89,9 @@ export default function KreditObjednavka({
 
   function zmenit(id: string, o: number) {
     setChyba(null);
+    // Jakmile host sahá na další výběr, potvrzení předchozí objednávky
+    // dosloužilo — jinak by nad novým výběrem viselo staré „hotovo“.
+    setStav((s) => (s === "hotovo" ? "klid" : s));
     setKusy((predchozi) => {
       const nove = Math.min(MAX_KUSU, Math.max(0, (predchozi[id] ?? 0) + o));
       const kopie = { ...predchozi };
@@ -70,9 +118,11 @@ export default function KreditObjednavka({
         zprava?: string;
       };
       if (res.ok && data.status === "ok") {
+        // Potvrzení se ukazuje OKAMŽITĚ, bez čekání na server. Refresh běží
+        // v přechodu a po jeho dokončení efekt výš odscrolluje na vstupenku.
         setKusy({});
-        setStav("klid");
-        router.refresh();
+        setStav("hotovo");
+        spustitObnovu(() => router.refresh());
         return;
       }
       setStav("chyba");
@@ -150,6 +200,32 @@ export default function KreditObjednavka({
         <p role="alert" className="text-center text-xs font-bold text-zapad-400">
           {t.kredit.prekroceno(korun(zbyva))}
         </p>
+      )}
+
+      {/* Okamžité potvrzení u palce — host ho vidí dřív, než doběhne server.
+          Zelená (list-600) je v appce barva „hotovo“ (stejná jako po výdeji)
+          a kokos-50 na ní drží 5,4:1, tedy nad WCAG AA. */}
+      {stav === "hotovo" && (
+        <div
+          role="status"
+          className="space-y-2.5 rounded-2xl border border-list-500/60 bg-list-600/90 px-4 py-3.5 text-center"
+        >
+          <p className="text-base font-black leading-tight text-kokos-50">
+            {t.kredit.objednavkaHotova}
+          </p>
+          <p className="text-xs font-semibold leading-relaxed text-kokos-50/85">
+            {t.kredit.objednavkaHotovaPopis}
+          </p>
+          {/* Záchranná brzda: kdyby automatický scroll cokoli přeskočilo
+              (starý prohlížeč, přerušený přechod), host má akci po ruce. */}
+          <button
+            type="button"
+            onClick={naVstupenku}
+            className="min-h-11 w-full rounded-xl bg-kokos-50 px-4 text-sm font-black uppercase tracking-wider text-inkoust transition hover:bg-white"
+          >
+            {t.kredit.zobrazitVstupenku}
+          </button>
+        </div>
       )}
 
       <button

@@ -33,8 +33,15 @@ import {
   objednatZKreditu,
   parsovatStavKreditu,
   vydatObjednavku,
+  zrusitObjednavku,
   type FetchLike,
 } from "../src/lib/healing-credit";
+import {
+  MAX_ZALOH,
+  VSTUPENKY_ID,
+  normalizovatZalohy,
+  predvyplneneZalohy,
+} from "../src/lib/kredit-ui";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (cesta: string) => readFileSync(join(root, cesta), "utf8");
@@ -46,7 +53,11 @@ const kvizFlow = read("src/components/KvizFlow.tsx");
 const kvizProfil = read("src/components/KvizFlowProfil.tsx");
 const routeObjednat = read("src/app/api/kredit/objednat/route.ts");
 const routeVydat = read("src/app/api/kredit/vydat/route.ts");
+const routeZrusit = read("src/app/api/kredit/zrusit/route.ts");
 const bridge = read("src/lib/healing-credit.ts");
+const zrusitKomponenta = read("src/components/ZrusitObjednavku.tsx");
+const objednavkaKomponenta = read("src/components/KreditObjednavka.tsx");
+const vydejKomponenta = read("src/components/VydejKreditu.tsx");
 
 /* ========================================================================== */
 /* A) Z kvízu rovnou do appky                                                 */
@@ -383,14 +394,49 @@ assert.deepEqual(normalizovatPolozky([{ id: "a", qty: 2 }]), [{ id: "a", qty: 2 
 
 {
   const f = fakeFetch(() => json(STAV_OK));
-  const vysledek = await sEnv(BASE, SECRET, () => vydatObjednavku(TELEFON, "o1", f));
+  const vysledek = await sEnv(BASE, SECRET, () =>
+    vydatObjednavku(TELEFON, "o1", null, f),
+  );
   assert.equal(vysledek.ok, true);
   const [volani] = f.zaznamy;
   assert.equal(volani.url, `${BASE}/issue`);
+  // Bez zadaných záloh se klíč `zalohy` VŮBEC neposílá — nula by pro most
+  // znamenala „obsluha vědomě řekla žádné kelímky“, což by nebyla pravda.
   assert.deepEqual(JSON.parse(String(volani.init?.body)), {
     phone: TELEFON,
     orderId: "o1",
   });
+}
+
+/* --- Zálohované kelímky ve výdeji ----------------------------------------- */
+{
+  const f = fakeFetch(() => json(STAV_OK));
+  await sEnv(BASE, SECRET, () => vydatObjednavku(TELEFON, "o1", 3, f));
+  assert.deepEqual(JSON.parse(String(f.zaznamy[0].init?.body)), {
+    phone: TELEFON,
+    orderId: "o1",
+    zalohy: 3,
+  });
+}
+// Nula je legitimní vědomá volba pokladní a MUSÍ se odeslat.
+{
+  const f = fakeFetch(() => json(STAV_OK));
+  await sEnv(BASE, SECRET, () => vydatObjednavku(TELEFON, "o1", 0, f));
+  assert.deepEqual(JSON.parse(String(f.zaznamy[0].init?.body)), {
+    phone: TELEFON,
+    orderId: "o1",
+    zalohy: 0,
+  });
+}
+// Nesmysl se na most nepropustí — raději bez klíče než se špatným číslem.
+for (const spatne of [-1, 21, 2.5, Number.NaN]) {
+  const f = fakeFetch(() => json(STAV_OK));
+  await sEnv(BASE, SECRET, () => vydatObjednavku(TELEFON, "o1", spatne, f));
+  assert.deepEqual(
+    JSON.parse(String(f.zaznamy[0].init?.body)),
+    { phone: TELEFON, orderId: "o1" },
+    `zálohy „${spatne}" se nesmí dostat na most`,
+  );
 }
 
 // Text z mostu se hostovi NIKDY nepropouští — ani ten „hezký“. Je psaný pro
@@ -417,10 +463,92 @@ for (const [popis, odpoved] of [
 // obsluhu jen mátlo.
 {
   const vydej = await sEnv(BASE, SECRET, () =>
-    vydatObjednavku(TELEFON, "o1", fakeFetch(() => json({ error: "boom" }, 500))),
+    vydatObjednavku(
+      TELEFON,
+      "o1",
+      null,
+      fakeFetch(() => json({ error: "boom" }, 500)),
+    ),
   );
   assert.equal(vydej.ok, false);
   assert.equal(vydej.ok === false && vydej.zprava, cs.chyby.vydejSelhal);
+}
+
+/* -------------------------------------------------------------------------- */
+/* C2b) Zrušení nevydané objednávky (bridge `POST /cancel`)                    */
+/* -------------------------------------------------------------------------- */
+// Endpoint na straně Healing.app se staví paralelně, takže se tu testuje
+// výhradně proti podstrčenému `fetch` — stejně jako objednávka a výdej.
+
+// Šťastná cesta: `/cancel`, POST, Bearer secret, no-store a tělo {phone, orderId}.
+{
+  const f = fakeFetch(() => json(STAV_OK));
+  const vysledek = await sEnv(BASE, SECRET, () =>
+    zrusitObjednavku(TELEFON, "o1", f),
+  );
+  assert.equal(vysledek.ok, true);
+  const [volani] = f.zaznamy;
+  assert.equal(volani.url, `${BASE}/cancel`, "zrušení jde na /cancel");
+  assert.equal(volani.init?.method, "POST");
+  assert.equal(volani.init?.cache, "no-store", "zrušení se nesmí cachovat");
+  assert.equal(
+    (volani.init?.headers as Record<string, string>).Authorization,
+    `Bearer ${SECRET}`,
+  );
+  assert.deepEqual(JSON.parse(String(volani.init?.body)), {
+    phone: TELEFON,
+    orderId: "o1",
+  });
+}
+
+// Fail-closed: bez konfigurace, s nesmyslným telefonem i bez orderId se most
+// nesmí zavolat vůbec — a host vždycky vidí hlášku Bar.app o zrušení.
+for (const [popis, url, secret, telefon, orderId] of [
+  ["bez konfigurace", undefined, undefined, TELEFON, "o1"],
+  ["bez secretu", BASE, undefined, TELEFON, "o1"],
+  ["neplatný telefon", BASE, SECRET, "601123456", "o1"],
+  ["prázdné orderId", BASE, SECRET, TELEFON, "   "],
+] as const) {
+  const f = fakeFetch(() => json(STAV_OK));
+  const vysledek = await sEnv(url, secret, () =>
+    zrusitObjednavku(telefon, orderId, f),
+  );
+  assert.equal(vysledek.ok, false, `${popis}: zrušení musí být fail-closed`);
+  assert.equal(
+    vysledek.ok === false && vysledek.zprava,
+    cs.kredit.chybaZruseni,
+    `${popis}: host vidí vlastní hlášku o zrušení`,
+  );
+  assert.equal(f.zaznamy.length, 0, `${popis}: bridge se nesmí volat vůbec`);
+}
+
+// Odmítnutí i výpadek mostu končí stejnou hláškou — nikdy textem z Healing.app.
+for (const [popis, odpoved] of [
+  ["už vydaná (409)", () => json({ error: "already issued" }, 409)],
+  ["HTTP 500", () => json({}, 500)],
+  ["cizí HTML", () => new Response("<html>rozbito</html>", { status: 502 })],
+  ["konfigurační detail", () => json({ error: "ECONNREFUSED 10.0.0.4" }, 500)],
+] as const) {
+  const vysledek = await sEnv(BASE, SECRET, () =>
+    zrusitObjednavku(TELEFON, "o1", fakeFetch(odpoved)),
+  );
+  assert.equal(vysledek.ok, false, `${popis}: musí skončit chybou`);
+  assert.equal(
+    vysledek.ok === false && vysledek.zprava,
+    cs.kredit.chybaZruseni,
+    `${popis}: text z mostu se hostovi nepropouští`,
+  );
+}
+
+// Výjimka ze sítě nesmí probublat ven ze zrušení.
+{
+  const vybuch = (async () => {
+    throw new Error("ECONNRESET");
+  }) as FetchLike;
+  const vysledek = await sEnv(BASE, SECRET, () =>
+    zrusitObjednavku(TELEFON, "o1", vybuch),
+  );
+  assert.equal(vysledek.ok, false, "výpadek sítě = neúspěch, žádná výjimka");
 }
 }
 
@@ -457,8 +585,10 @@ assert.doesNotMatch(
 const zkusitZnovu = read("src/components/ZkusitZnovu.tsx");
 assert.match(zkusitZnovu, /router\.refresh\(\)/, "opakování jede přes router.refresh()");
 assert.match(kredit, /<ZiveHodiny \/>/, "vstupenka musí mít živé hodiny");
+// Výdej se od 6. 8. 2026 skládá ve `VydejKreditu` (stepper záloh + VYDAT),
+// takže endpoint hlídáme tam, ne na stránce.
 assert.match(
-  kredit,
+  vydejKomponenta,
   /endpoint="\/api\/kredit\/vydat"/,
   "výdej musí jít přes vlastní endpoint",
 );
@@ -467,9 +597,377 @@ assert.match(kredit, /issuedAt === null/, "vstupenka je jen pro nevydanou objedn
 assert.match(homepage, /kredit\?\.stav\.eligible/, "karta kreditu jen pro eligible hosty");
 assert.match(homepage, /href: "\/kredit"/);
 
+/* --- Banner se zůstatkem nad kartami (6. 8. 2026) -------------------------- */
+// Banner smí vyjet JEN tehdy, když most kredit potvrdil. Při `nedostupny`
+// (i při `neni`) se nesmí objevit vůbec — rozcestník není místo na chybové
+// hlášky o něčem, s čím host nic neudělá.
+assert.match(
+  homepage,
+  /kredit\?\.stav\.dostupnost === "kredit"/,
+  "banner kreditu se řídí dostupností, ne jen `eligible`",
+);
+assert.doesNotMatch(
+  homepage,
+  /dostupnost === "nedostupny"/,
+  "rozcestník nesmí mít vlastní větev pro nedostupný most — prostě mlčí",
+);
+assert.match(
+  homepage,
+  /zbyvaKredit !== null && \(/,
+  "banner se vykresluje jen se známým zůstatkem",
+);
+assert.match(
+  homepage,
+  /\{t\.rozcestnik\.kreditBanner\(korun\(zbyvaKredit\)\)\}/,
+  "banner musí ukázat zbývající částku ze slovníku",
+);
+assert.ok(
+  homepage.indexOf("zbyvaKredit !== null && (") < homepage.indexOf("<nav aria-label"),
+  "banner patří NAD karty rozcestníku",
+);
+assert.ok(
+  cs.rozcestnik.kreditBanner("500 Kč").includes("500 Kč") &&
+    en.rozcestnik.kreditBanner("500 Kč").includes("500 Kč"),
+  "banner musí částku propsat v obou jazycích",
+);
+assert.match(cs.rozcestnik.kreditBanner("500 Kč"), /kredit/i, "cs banner mluví o kreditu");
+assert.match(en.rozcestnik.kreditBanner("500 Kč"), /credit/i, "en banner mluví o kreditu");
+
+/* --- Historie objednávek je sbalená a kompaktní ---------------------------- */
+assert.match(
+  kredit,
+  /<details className="karta">/,
+  "historie kreditních objednávek musí být sbalený <details> blok",
+);
+assert.doesNotMatch(kredit, /<details[^>]*\sopen/, "historie musí být defaultně SBALENÁ");
+assert.match(
+  kredit,
+  /\{t\.kredit\.historieNadpis\}/,
+  "sbalená historie musí mít nadpis ze slovníku",
+);
+assert.ok(
+  cs.kredit.historieNadpis === "Historie kreditních objednávek" &&
+    en.kredit.historieNadpis === "Credit order history",
+  "schválené znění nadpisu historie",
+);
+// Kompaktní řádek = datum a čas, počet položek a součet. ŽÁDNÝ rozpad položek:
+// `radek.n` smí zůstat jen na živé vstupence, ne v historii.
+const historieOd = kredit.indexOf("<details className=\"karta\">");
+const historieDo = kredit.indexOf("</details>");
+assert.ok(historieOd > 0 && historieDo > historieOd, "blok historie se nenašel");
+const historie = kredit.slice(historieOd, historieDo);
+for (const [popis, vzor] of [
+  ["datum a čas", /formatCzechDateTime\(objednavka\.issuedAt, lang\)/],
+  ["počet položek", /t\.kredit\.historiePocet\(pocetKusu\(objednavka\)\)/],
+  ["součet v Kč", /korun\(objednavka\.total\)/],
+] as const) {
+  assert.match(historie, vzor, `historie musí ukázat ${popis}`);
+}
+assert.doesNotMatch(
+  historie,
+  /radek\.n|items\.map/,
+  "historie nesmí rozpadat objednávku na položky",
+);
+// Nevydané vstupenky zůstávají nahoře v plném detailu.
+assert.ok(
+  kredit.indexOf("{kCekani.length > 0 && (") < historieOd,
+  "živé vstupenky zůstávají nad historií",
+);
+
+/* ========================================================================== */
+/* C4) Regrese 6. 8. 2026: po „Objednat" musí být vstupenka VIDĚT             */
+/* ========================================================================== */
+// Produkční bug: objednávka se založila, server komponenta se překreslila
+// a vstupenka vznikla — jenže NAD katalogem. Prohlížeč po vložení obsahu nad
+// viewportem dorovná scroll (scroll anchoring), takže host zůstal viset dole
+// u tlačítka a vstupenku ~650 px nad sebou nikdy neuviděl.
+//
+// Kontrakt, který to drží pohromadě:
+//   1. sekce vstupenek nese kotvu `VSTUPENKY_ID`,
+//   2. klient po objednání na tu kotvu odscrolluje,
+//   3. potvrzení se ukáže OKAMŽITĚ, ne až po server round-tripu.
+assert.equal(VSTUPENKY_ID, "kredit-vstupenky", "kotva vstupenek má stabilní id");
+assert.match(
+  kredit,
+  /<section id=\{VSTUPENKY_ID\}/,
+  "sekce živých vstupenek musí nést kotvu VSTUPENKY_ID",
+);
+assert.match(
+  objednavkaKomponenta,
+  /document\.getElementById\(VSTUPENKY_ID\)/,
+  "klient musí kotvu hledat přes sdílenou konstantu, ne přes opsaný řetězec",
+);
+assert.match(
+  objednavkaKomponenta,
+  /scrollIntoView\(/,
+  "po objednání se musí odscrollovat na vstupenku",
+);
+assert.match(
+  objednavkaKomponenta,
+  /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/,
+  "scroll musí respektovat „omezit pohyb“",
+);
+assert.match(
+  objednavkaKomponenta,
+  /behavior: omezitPohyb \? "auto" : "smooth"/,
+  "při omezeném pohybu se nesmí animovat",
+);
+// Vstupenka vzniká až po refreshi — scroll proto nesmí proběhnout dřív,
+// než přechod doběhne, a nesmí to vzdát na prvním prázdném snímku.
+assert.match(
+  objednavkaKomponenta,
+  /useTransition\(\)/,
+  "refresh musí běžet v přechodu, ať víme, kdy doběhl",
+);
+assert.match(
+  objednavkaKomponenta,
+  /spustitObnovu\(\(\) => router\.refresh\(\)\)/,
+  "refresh se spouští uvnitř přechodu",
+);
+assert.match(
+  objednavkaKomponenta,
+  /if \(stav !== "hotovo" \|\| obnovuji\) return;/,
+  "scroll až po dokončení obnovy",
+);
+assert.match(
+  objednavkaKomponenta,
+  /requestAnimationFrame\(\(\) => odscrollujNaVstupenku\(pokus \+ 1\)\)/,
+  "na vstupenku se musí pár snímků počkat",
+);
+// Optimistické potvrzení u palce — bez čekání na server.
+assert.match(
+  objednavkaKomponenta,
+  /setStav\("hotovo"\);\s*\n\s*spustitObnovu/,
+  "potvrzení se nastavuje PŘED refreshem, ne až po něm",
+);
+for (const [popis, vzor] of [
+  ["nadpis potvrzení", /\{t\.kredit\.objednavkaHotova\}/],
+  ["popis potvrzení", /\{t\.kredit\.objednavkaHotovaPopis\}/],
+  ["ruční cesta na vstupenku", /\{t\.kredit\.zobrazitVstupenku\}/],
+  ["oznámení pro odečítač", /role="status"/],
+] as const) {
+  assert.match(objednavkaKomponenta, vzor, `potvrzení objednávky: chybí ${popis}`);
+}
+assert.ok(
+  cs.kredit.objednavkaHotova.trim().length > 0 &&
+    en.kredit.objednavkaHotova.trim().length > 0 &&
+    cs.kredit.zobrazitVstupenku.trim().length > 0 &&
+    en.kredit.zobrazitVstupenku.trim().length > 0,
+  "potvrzení objednávky musí být dvojjazyčné",
+);
+// Pořadí v DOM zůstává (vstupenka nahoře) — proto ten scroll vůbec je.
+assert.ok(
+  kredit.indexOf(`<section id={VSTUPENKY_ID}`) < kredit.indexOf("<KreditObjednavka"),
+  "vstupenka je nad katalogem — kdyby se to otočilo, scroll se musí přehodnotit",
+);
+
+/* ========================================================================== */
+/* C5) Počet záloh nad tlačítkem VYDAT                                        */
+/* ========================================================================== */
+
+assert.equal(MAX_ZALOH, 20, "strop záloh je 20");
+for (const [popis, vstup, ocekavano] of [
+  ["celé číslo projde", 3, 3],
+  ["nula projde", 0, 0],
+  ["strop projde", 20, 20],
+  ["nad strop neprojde", 21, null],
+  ["záporné neprojde", -1, null],
+  ["desetinné neprojde", 2.5, null],
+  ["NaN neprojde", Number.NaN, null],
+  ["text s číslem projde", "4", 4],
+  ["nesmyslný text neprojde", "hodně", null],
+  ["undefined = nezadáno", undefined, null],
+  ["null = nezadáno", null, null],
+] as const) {
+  assert.equal(normalizovatZalohy(vstup), ocekavano, `zálohy: ${popis}`);
+}
+
+// Předvyplnění: nápoje z festivalového katalogu se počítají, jídlo ne.
+assert.equal(
+  predvyplneneZalohy([{ n: "Wild Raw coconut water", qty: 2 }]),
+  2,
+  "studený nápoj = zálohovaný kelímek",
+);
+assert.equal(
+  predvyplneneZalohy([{ n: "Cappuccino", qty: 3 }]),
+  3,
+  "káva = zálohovaný kelímek",
+);
+assert.equal(
+  predvyplneneZalohy([
+    { n: "Cappuccino", qty: 2 },
+    { n: "Granola v lodičce", qty: 5 },
+  ]),
+  2,
+  "jídlo se do záloh nepočítá",
+);
+assert.equal(
+  predvyplneneZalohy([{ n: "Granola v lodičce", qty: 4 }]),
+  0,
+  "jen jídlo = žádná záloha",
+);
+assert.equal(
+  predvyplneneZalohy([{ n: "  wild RAW   coconut water ", qty: 1 }]),
+  1,
+  "shoda názvu ignoruje mezery a velikost písmen",
+);
+// Když se v katalogu nenajde ANI JEDNA položka, nápoj poznat nejde → celkem.
+assert.equal(
+  predvyplneneZalohy([
+    { n: "Neznámá novinka", qty: 2 },
+    { n: "Další neznámá", qty: 1 },
+  ]),
+  3,
+  "nerozpoznaná objednávka spadne na celkový počet kusů",
+);
+assert.equal(
+  predvyplneneZalohy([{ n: "Neznámá novinka", qty: 99 }]),
+  MAX_ZALOH,
+  "předvyplnění nikdy nepřeleze strop",
+);
+assert.equal(predvyplneneZalohy([]), 0, "prázdná objednávka = žádné zálohy");
+
+// Parser stavu: `deposits` se přebírá z mostu, nesmysly se zahazují.
+{
+  const s = parsovatStavKreditu({
+    eligible: true,
+    credit: { total: 500, spent: 0, remaining: 500 },
+    orders: [
+      { id: "a", items: [], total: 0, deposits: 2 },
+      { id: "b", items: [], total: 0, deposits: 99 },
+      { id: "c", items: [], total: 0 },
+    ],
+  });
+  assert.equal(s.orders[0].deposits, 2, "platné deposits se přeberou");
+  assert.equal(s.orders[1].deposits, null, "deposits nad strop se zahodí");
+  assert.equal(s.orders[2].deposits, null, "chybějící deposits = null");
+}
+
+// Stránka: stepper je NAD tlačítkem VYDAT a předvyplní se podle objednávky.
+assert.match(
+  kredit,
+  /<VydejKreditu\s+orderId=\{objednavka\.id\}/,
+  "vstupenka musí vydávat přes VydejKreditu",
+);
+assert.match(
+  kredit,
+  /objednavka\.deposits \?\? predvyplneneZalohy\(objednavka\.items\)/,
+  "předvyplnění bere hodnotu z mostu, jinak návrh z katalogu",
+);
+assert.ok(
+  vydejKomponenta.indexOf("t.kredit.zalohyNadpis") <
+    vydejKomponenta.indexOf("<VydatTlacitko"),
+  "ovladač záloh patří NAD tlačítko VYDAT",
+);
+assert.match(
+  vydejKomponenta,
+  /telo=\{\{ orderId, zalohy \}\}/,
+  "hodnota stepperu musí odejít v těle výdeje",
+);
+// Barevné odlišení od primární akce: stepper je laguna, ne mango.
+assert.doesNotMatch(
+  vydejKomponenta,
+  /bg-mango|tlacitko-hlavni/,
+  "stepper záloh nesmí použít barvu primární akce",
+);
+assert.match(vydejKomponenta, /laguna-/, "stepper záloh jede v lagunové rodině");
+for (const [popis, vzor] of [
+  ["nadpis", /\{t\.kredit\.zalohyNadpis\}/],
+  ["nápověda", /\{t\.kredit\.zalohyNapoveda\}/],
+  ["popisek ubrat", /t\.kredit\.zalohyUbrat/],
+  ["popisek přidat", /t\.kredit\.zalohyPridat/],
+  ["strop ze sdílené konstanty", /MAX_ZALOH/],
+] as const) {
+  assert.match(vydejKomponenta, vzor, `stepper záloh: chybí ${popis}`);
+}
+assert.ok(
+  cs.kredit.zalohyNadpis === "Počet záloh" &&
+    en.kredit.zalohyNadpis === "Deposit cups",
+  "schválené znění nadpisu záloh",
+);
+assert.ok(
+  cs.kredit.zalohyNapoveda.trim().length > 0 &&
+    en.kredit.zalohyNapoveda.trim().length > 0,
+  "nápověda k zálohám musí být dvojjazyčná",
+);
+// Route: nesmyslný počet záloh se nepřepočítá potichu na nulu.
+assert.match(
+  routeVydat,
+  /normalizovatZalohy\(surovyZalohy\)/,
+  "vydat: zálohy se normalizují na serveru",
+);
+assert.match(
+  routeVydat,
+  /zprava: t\.chyby\.zalohyNesmysl/,
+  "vydat: nesmyslné zálohy končí chybou, ne tichou nulou",
+);
+
+/* --- Zrušení nevydané objednávky ------------------------------------------ */
+assert.match(
+  kredit,
+  /<ZrusitObjednavku orderId=\{objednavka\.id\} \/>/,
+  "nevydaná vstupenka musí nabídnout zrušení",
+);
+assert.ok(
+  kredit.indexOf("<VydejKreditu") < kredit.indexOf("<ZrusitObjednavku"),
+  "VYDAT zůstává hlavní akcí, zrušení je až pod ním",
+);
+// Váha akce: zrušení je textové tlačítko, ne barevná plocha vedle VYDAT.
+assert.doesNotMatch(
+  zrusitKomponenta,
+  /tlacitko-hlavni|tlacitko-zapad|tlacitko-svetle/,
+  "zrušení nesmí použít třídu primárního tlačítka",
+);
+assert.match(
+  zrusitKomponenta,
+  /underline/,
+  "výchozí podoba zrušení je decentní textový odkaz",
+);
+// Dvoukrokové potvrzení + pending stav + refresh po úspěchu.
+for (const [popis, vzor] of [
+  ["potvrzovací krok", /\{t\.kredit\.zrusitPotvrzeni\}/],
+  ["potvrzení ano", /t\.kredit\.zrusitAno/],
+  ["ústup zpět", /\{t\.kredit\.zrusitNe\}/],
+  ["pending stav", /stav === "rusim" \? t\.kredit\.rusim/],
+  ["odeslání na vlastní endpoint", /fetch\("\/api\/kredit\/zrusit"/],
+  ["refresh po úspěchu", /router\.refresh\(\)/],
+  ["vlastní hláška při chybě", /t\.kredit\.chybaZruseni/],
+] as const) {
+  assert.match(zrusitKomponenta, vzor, `zrušení: chybí ${popis}`);
+}
+assert.doesNotMatch(
+  zrusitKomponenta,
+  /\bconfirm\(/,
+  "potvrzení jede dvoukrokově v UI, ne nepřeložitelným nativním dialogem",
+);
+// Klient posílá VÝHRADNĚ orderId — telefon si server bere ze session.
+assert.match(
+  zrusitKomponenta,
+  /JSON\.stringify\(\{ orderId \}\)/,
+  "klient nesmí posílat nic než orderId",
+);
+assert.ok(
+  cs.kredit.zrusit === "Zrušit objednávku" && en.kredit.zrusit === "Cancel order",
+  "schválené znění tlačítka zrušení",
+);
+assert.ok(
+  cs.kredit.zrusitPotvrzeni === "Opravdu zrušit? Kredit se ti vrátí." &&
+    en.kredit.zrusitPotvrzeni ===
+      "Really cancel? Your credit will be refunded.",
+  "schválené znění potvrzení",
+);
+assert.ok(
+  cs.kredit.chybaZruseni ===
+    "Objednávku se nepodařilo zrušit — možná už byla vydaná." &&
+    en.kredit.chybaZruseni ===
+      "We couldn't cancel the order — it may already have been handed out.",
+  "schválené znění chyby zrušení",
+);
+
 for (const [jmeno, route] of [
   ["objednat", routeObjednat],
   ["vydat", routeVydat],
+  ["zrusit", routeZrusit],
 ] as const) {
   assert.match(route, /getSessionUser\(\)/, `${jmeno}: musí ověřit session`);
   assert.match(
@@ -489,6 +987,24 @@ assert.match(
   routeVydat,
   /objednavka\.id === orderId\.trim\(\) && objednavka\.issuedAt === null/,
   "vydat: cizí ani už vydaná objednávka neprojde",
+);
+// Zrušení má stejnou pojistku vlastnictví jako výdej — jinak by stačilo poslat
+// cizí `orderId` a odepsat někomu objednávku z kreditu.
+assert.match(
+  routeZrusit,
+  /objednavka\.id === orderId\.trim\(\) && objednavka\.issuedAt === null/,
+  "zrusit: cizí ani už vydaná objednávka neprojde",
+);
+assert.match(routeZrusit, /status: 409/, "zrusit: neexistující objednávka končí 409");
+assert.match(
+  routeZrusit,
+  /zrusitObjednavku\(telefon, cekajici\.id, fetch, lang\)/,
+  "zrusit: na most jde telefon ze session a ověřené id objednávky",
+);
+assert.doesNotMatch(
+  routeZrusit,
+  /orderId: orderId/,
+  "zrusit: na most se posílá ověřená objednávka, ne syrový vstup",
 );
 
 // Secret smí znát jen server. Klientské komponenty nesmí modul ani importovat
@@ -546,7 +1062,8 @@ kontrolyBridge()
   .then(
     () =>
       console.log(
-        "✓ darek + kredit checks OK (CTA v obou kvízech, schválené texty + QR 480 px, bridge fail-closed)",
+        "✓ darek + kredit checks OK (CTA v obou kvízech, schválené texty + QR 480 px, " +
+          "bridge fail-closed vč. /cancel, banner jen při potvrzeném kreditu, historie sbalená)",
       ),
     (chyba) => {
       console.error("✗ check-darek-kredit:", chyba);

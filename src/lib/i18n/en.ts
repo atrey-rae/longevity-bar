@@ -128,6 +128,7 @@ export const en: Dict = {
     navigaceLabel: "What would you like to do at the Longevity Bar",
     potvrdEmailNadpis: "Your rewards are waiting",
     potvrdEmail: "Confirm your email",
+    kreditBanner: (zbyva: string) => `You have credit with us — ${zbyva} left`,
     prihlasenyPred:
       "You're signed in. Your loyalty card and account settings live in",
     prihlasenyOdkaz: "rewards",
@@ -476,6 +477,8 @@ export const en: Dict = {
     coSiDas: "What would you like?",
     vycerpano: "Your credit is all used up. Thanks for spending it with us!",
     uzVydano: "Already collected",
+    historieNadpis: "Credit order history",
+    historiePocet: (kusu: number) => pocet(kusu, "item", "items"),
     objednavkaZKreditu: "Order from your credit",
     jenObsluha:
       "Only our team presses this button. If you press it yourself, the order is taken off your credit.",
@@ -484,9 +487,24 @@ export const en: Dict = {
       `That's more than you have left (${zbyva}). Please take something off.`,
     objednat: "Place the order",
     objednavam: "Ordering…",
+    objednavkaHotova: "Your order is ready",
+    objednavkaHotovaPopis:
+      "Taking you up to your ticket — show it to the team at the bar.",
+    zobrazitVstupenku: "Show my ticket",
+    zalohyNadpis: "Deposit cups",
+    zalohyNapoveda: "How many deposit cups you're handing over",
+    zalohyUbrat: "Remove one deposit cup",
+    zalohyPridat: "Add one deposit cup",
     ubrat: (nazev: string) => `Remove one ${nazev}`,
     pridat: (nazev: string) => `Add one ${nazev}`,
     chybaObjednavky: "We couldn't send your order. Please try again.",
+    zrusit: "Cancel order",
+    zrusitPotvrzeni: "Really cancel? Your credit will be refunded.",
+    zrusitAno: "Yes, cancel",
+    zrusitNe: "Keep it",
+    rusim: "Cancelling…",
+    chybaZruseni:
+      "We couldn't cancel the order — it may already have been handed out.",
   },
 
   sortiment: {
@@ -773,6 +791,7 @@ export const en: Dict = {
       "We couldn't load your credit right now. Please try again in a moment.",
     kreditNemas: "We don't have any Longevity Bar credit for you.",
     objednavkaNesmysl: "That order doesn't add up. Please choose again.",
+    zalohyNesmysl: "That deposit count doesn't add up. Please enter it again.",
     chybiObjednavka: "There's no order to hand over.",
     objednavkaVydana: "This order has already been handed over, or doesn't exist.",
     zadejPlatnyEmail: "Enter a valid email.",

@@ -62,7 +62,7 @@ import {
   STAMPS_PER_TIER,
 } from "../loyalty";
 import { katalogTexty } from "./katalog";
-import { minuty, razitka } from "../text";
+import { minuty, polozky, razitka } from "../text";
 import type { ProductCategory } from "../types";
 
 /* -------------------------------------------------------------------------- */
@@ -173,6 +173,9 @@ export const cs = {
     navigaceLabel: "Co chceš v Longevity Baru zažít",
     potvrdEmailNadpis: "Odměny ještě čekají",
     potvrdEmail: "Potvrď e-mail",
+    /* Banner nad kartami — jen pro hosty, u kterých most kredit POTVRDIL.
+       Při nedostupném mostu se nezobrazuje vůbec (žádné strašení chybou). */
+    kreditBanner: (zbyva: string) => `Máš u nás kredit — zbývá ${zbyva}`,
     prihlasenyPred: "Jsi přihlášený. Věrnostní kartu a nastavení účtu najdeš v",
     prihlasenyOdkaz: "odměnách",
     prihlasenyPo: ".",
@@ -518,6 +521,9 @@ export const cs = {
     coSiDas: "Co si dáš?",
     vycerpano: "Kredit máš vyčerpaný. Díky, že jsi ho utratil u nás!",
     uzVydano: "Už vydáno",
+    /* Historie je archiv, ne akce — proto sbalená a bez rozpadu položek. */
+    historieNadpis: "Historie kreditních objednávek",
+    historiePocet: (kusu: number) => polozky(kusu),
     objednavkaZKreditu: "Objednávka z kreditu",
     jenObsluha:
       "Tlačítko mačká jen obsluha. Když ho zmáčkneš sám, objednávka se odepíše z kreditu.",
@@ -526,9 +532,29 @@ export const cs = {
       `To je víc, než ti zbývá (${zbyva}). Uber prosím něco z výběru.`,
     objednat: "Objednat",
     objednavam: "Objednávám…",
+    /* Potvrzení hned u palce — vstupenka vzniká NAD katalogem, takže bez
+       tohohle (a bez odscrollování) vypadalo objednání jako by se nic nestalo. */
+    objednavkaHotova: "Objednávka je připravená",
+    objednavkaHotovaPopis:
+      "Posouváme tě nahoru na vstupenku — ukaž ji obsluze u baru.",
+    zobrazitVstupenku: "Zobrazit vstupenku",
+    /* Zálohované kelímky — nastavuje pokladní před výdejem. */
+    zalohyNadpis: "Počet záloh",
+    zalohyNapoveda: "Kolik zálohovaných kelímků vydáváš",
+    zalohyUbrat: "Ubrat jednu zálohu",
+    zalohyPridat: "Přidat jednu zálohu",
     ubrat: (nazev: string) => `Ubrat ${nazev}`,
     pridat: (nazev: string) => `Přidat ${nazev}`,
     chybaObjednavky: "Objednávku se nepodařilo odeslat. Zkus to znovu.",
+    /* Zrušení nevydané objednávky — vedlejší, decentní akce pod tlačítkem
+       VYDAT. Dva kroky místo jednoho kliku, ať se u pultu nezruší omylem. */
+    zrusit: "Zrušit objednávku",
+    zrusitPotvrzeni: "Opravdu zrušit? Kredit se ti vrátí.",
+    zrusitAno: "Ano, zrušit",
+    zrusitNe: "Nechat",
+    rusim: "Ruším…",
+    chybaZruseni:
+      "Objednávku se nepodařilo zrušit — možná už byla vydaná.",
   },
 
   /* --- Sortiment ---------------------------------------------------------- */
@@ -719,6 +745,7 @@ export const cs = {
     kreditNedostupny: "Kredit se teď nepodařilo načíst. Zkus to prosím za chvíli.",
     kreditNemas: "Kredit na Longevity Baru pro tebe nemáme.",
     objednavkaNesmysl: "Objednávka nedává smysl. Zkus výběr znovu.",
+    zalohyNesmysl: "Počet záloh nedává smysl. Zadej ho prosím znovu.",
     chybiObjednavka: "Chybí objednávka k výdeji.",
     objednavkaVydana: "Tahle objednávka už je vydaná, nebo neexistuje.",
     zadejPlatnyEmail: "Zadej platný e-mail.",

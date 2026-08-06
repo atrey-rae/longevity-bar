@@ -1,20 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
-import { vydatObjednavku } from "@/lib/healing-credit";
+import { zrusitObjednavku } from "@/lib/healing-credit";
 import { getT } from "@/lib/i18n/server";
-import { normalizovatZalohy } from "@/lib/kredit-ui";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Výdej objednávky z kreditu u baru (obsluha podrží 3 s na telefonu hosta).
+ * Zrušení objednávky z kreditu, kterou obsluha ještě nevydala.
  *
- * Telefon jde ze session, `orderId` z těla. Že objednávka patří tomuhle
- * hostovi, si navíc ověříme proti jeho stavu — bridge tak nikdy nedostane
- * cizí `orderId` z ručně poslaného requestu.
+ * Stejný kontrakt jako `/api/kredit/vydat`, jen opačným směrem: telefon jde
+ * VÝHRADNĚ ze session (nikdy z těla requestu) a že objednávka patří tomuhle
+ * hostovi a je pořád nevydaná, se ověří proti jeho stavu z bridge. Cizí ani už
+ * vydané `orderId` se tak na Healing.app vůbec nedostane.
+ *
+ * Poslední slovo má stejně most — mezi načtením stavu a zrušením mohla obsluha
+ * objednávku vydat; proto se jeho odmítnutí překládá na tutéž hlášku.
  */
 export async function POST(request: NextRequest) {
   const { lang, t } = await getT();
@@ -35,18 +38,7 @@ export async function POST(request: NextRequest) {
   const orderId = (telo as { orderId?: unknown } | null)?.orderId;
   if (typeof orderId !== "string" || orderId.trim() === "") {
     return NextResponse.json(
-      { status: "chyba", zprava: t.chyby.chybiObjednavka },
-      { status: 400 },
-    );
-  }
-
-  // Počet zálohovaných kelímků je volitelný. Nesmyslná hodnota se NEPŘEPOČÍTÁVÁ
-  // potichu na nulu — výdej by pak tiše zapsal špatné číslo do evidence záloh.
-  const surovyZalohy = (telo as { zalohy?: unknown } | null)?.zalohy;
-  const zalohy = normalizovatZalohy(surovyZalohy);
-  if (surovyZalohy !== undefined && surovyZalohy !== null && zalohy === null) {
-    return NextResponse.json(
-      { status: "chyba", zprava: t.chyby.zalohyNesmysl },
+      { status: "chyba", zprava: t.chyby.neplatnyPozadavek },
       { status: 400 },
     );
   }
@@ -60,22 +52,17 @@ export async function POST(request: NextRequest) {
   }
 
   const cekajici = stav.orders.find(
-    (objednavka) => objednavka.id === orderId.trim() && objednavka.issuedAt === null,
+    (objednavka) =>
+      objednavka.id === orderId.trim() && objednavka.issuedAt === null,
   );
   if (!cekajici) {
     return NextResponse.json(
-      { status: "chyba", zprava: t.chyby.objednavkaVydana },
+      { status: "chyba", zprava: t.kredit.chybaZruseni },
       { status: 409 },
     );
   }
 
-  const vysledek = await vydatObjednavku(
-    telefon,
-    cekajici.id,
-    zalohy,
-    fetch,
-    lang,
-  );
+  const vysledek = await zrusitObjednavku(telefon, cekajici.id, fetch, lang);
   if (!vysledek.ok) {
     return NextResponse.json(
       { status: "chyba", zprava: vysledek.zprava },

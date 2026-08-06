@@ -6,6 +6,7 @@ import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import { getT } from "@/lib/i18n/server";
 import type { Dict } from "@/lib/i18n/types";
 import { getSessionUser } from "@/lib/supabase/server";
+import { korun } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,17 @@ export default async function Homepage() {
     ? [...PASSPORTS, KREDIT_KARTA]
     : [...PASSPORTS];
 
+  /**
+   * Zůstatek do banneru nad kartami — JEN když most kredit opravdu POTVRDIL.
+   * Při `nedostupny` (most mlčí, chybí konfigurace, rozbitá odpověď) se banner
+   * nezobrazí vůbec: rozcestník není místo, kde hosta strašit chybou, o které
+   * nemůže nic udělat. Vlastní stránka `/kredit` má na to svůj třetí stav.
+   */
+  const zbyvaKredit =
+    kredit?.stav.dostupnost === "kredit"
+      ? (kredit.stav.credit?.remaining ?? null)
+      : null;
+
   return (
     <div className="obal space-y-5">
       <section className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-inkoust/[0.45] px-5 pb-6 pt-7 shadow-karta">
@@ -111,6 +123,27 @@ export default async function Homepage() {
           {t.rozcestnik.podnadpis}
         </p>
       </section>
+
+      {/* Kredit je z celého rozcestníku ta nejcennější informace — patří nad
+          karty, ne pod ně. Mangový přeliv drží stejnou rodinu jako karta 06
+          (inkoust na mango-400 = 10,5:1, na mango-600 = 6,8:1, tedy WCAG AA
+          i pro drobný text), ale nižší výškou se od karet odliší jako pruh. */}
+      {zbyvaKredit !== null && (
+        <Link
+          href="/kredit"
+          className="flex min-h-16 items-center gap-3.5 rounded-2xl bg-gradient-to-br from-mango-400 to-mango-600 px-4 py-3.5 text-inkoust shadow-karta transition hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <span aria-hidden className="shrink-0 text-2xl leading-none">
+            💳
+          </span>
+          <span className="min-w-0 flex-1 text-[1.0625rem] font-black leading-tight">
+            {t.rozcestnik.kreditBanner(korun(zbyvaKredit))}
+          </span>
+          <span aria-hidden className="shrink-0 text-2xl font-light leading-none">
+            →
+          </span>
+        </Link>
+      )}
 
       {user && emailStatus && !emailStatus.verified && (
         <Link

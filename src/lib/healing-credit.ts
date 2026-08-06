@@ -27,6 +27,7 @@ if (typeof window !== "undefined") {
 import { getDict } from "./i18n";
 import { DEFAULT_LANG, type Lang } from "./i18n/lang";
 import type { Dict } from "./i18n/types";
+import { normalizovatZalohy } from "./kredit-ui";
 
 const CASOVY_LIMIT_MS = 6000;
 
@@ -61,6 +62,12 @@ export type BarCreditObjednavka = {
   createdAt: string | null;
   /** `null` = objednávka čeká na výdej u baru (živá vstupenka). */
   issuedAt: string | null;
+  /**
+   * Počet zálohovaných kelímků, které Healing.app u objednávky eviduje.
+   * `null` = most o zálohách zatím nic neví (nevydaná objednávka nebo starší
+   * verze kontraktu) — pak si UI předvyplní návrh podle katalogu.
+   */
+  deposits: number | null;
 };
 
 /**
@@ -121,6 +128,7 @@ type VyberHlasky = (t: Dict) => string;
 const HLASKA_STAV: VyberHlasky = (t) => t.chyby.kreditNedostupny;
 const HLASKA_OBJEDNAVKA: VyberHlasky = (t) => t.kredit.chybaObjednavky;
 const HLASKA_VYDEJ: VyberHlasky = (t) => t.chyby.vydejSelhal;
+const HLASKA_ZRUSENI: VyberHlasky = (t) => t.kredit.chybaZruseni;
 
 /* -------------------------------------------------------------------------- */
 /* Konfigurace                                                                 */
@@ -225,6 +233,7 @@ function parsovatObjednavky(hodnota: unknown): BarCreditObjednavka[] {
       total: cislo(o.total) ?? 0,
       createdAt: text(o.createdAt),
       issuedAt: text(o.issuedAt),
+      deposits: normalizovatZalohy(cislo(o.deposits)),
     });
   }
   return objednavky;
@@ -375,8 +384,50 @@ export async function objednatZKreditu(
   );
 }
 
-/** Výdej objednávky u baru (obsluha, podržení 3 s). */
+/**
+ * Výdej objednávky u baru (obsluha, podržení 3 s).
+ *
+ * `zalohy` = kolik zálohovaných kelímků s objednávkou odchází. Do těla se pošle
+ * JEN když ho pokladní opravdu zadala — `null` znamená „neřešíme“ a klíč se
+ * vynechá, aby si most nemyslel, že obsluha vědomě zadala nulu.
+ */
 export async function vydatObjednavku(
+  phone: string,
+  orderId: string,
+  zalohy: number | null = null,
+  fetchImpl: FetchLike = fetch,
+  lang: Lang = DEFAULT_LANG,
+): Promise<VysledekKreditu> {
+  const telefon = platnyTelefon(phone);
+  const id = text(orderId);
+  if (!telefon || !id) return { ok: false, zprava: obecnaChyba(lang) };
+  const pocetZaloh = normalizovatZalohy(zalohy);
+  return zavolat(
+    {
+      cesta: "/issue",
+      metoda: "POST",
+      telo: {
+        phone: telefon,
+        orderId: id,
+        ...(pocetZaloh === null ? {} : { zalohy: pocetZaloh }),
+      },
+      fetchImpl,
+      hlaska: HLASKA_VYDEJ,
+    },
+    lang,
+  );
+}
+
+/**
+ * Zrušení JEŠTĚ NEVYDANÉ objednávky — host si to rozmyslel a kredit se mu
+ * v Healing.app vrátí. Stejně fail-closed jako zbytek modulu: bez platného
+ * telefonu se bridge nevolá vůbec a jakékoli selhání skončí hláškou
+ * „možná už byla vydaná“, nikdy textem z mostu.
+ *
+ * O tom, jestli zrušení projde, rozhoduje VŽDY Healing.app — obsluha mohla
+ * objednávku vydat o vteřinu dřív, než host zmáčkl tlačítko.
+ */
+export async function zrusitObjednavku(
   phone: string,
   orderId: string,
   fetchImpl: FetchLike = fetch,
@@ -384,14 +435,16 @@ export async function vydatObjednavku(
 ): Promise<VysledekKreditu> {
   const telefon = platnyTelefon(phone);
   const id = text(orderId);
-  if (!telefon || !id) return { ok: false, zprava: obecnaChyba(lang) };
+  if (!telefon || !id) {
+    return { ok: false, zprava: getDict(lang).kredit.chybaZruseni };
+  }
   return zavolat(
     {
-      cesta: "/issue",
+      cesta: "/cancel",
       metoda: "POST",
       telo: { phone: telefon, orderId: id },
       fetchImpl,
-      hlaska: HLASKA_VYDEJ,
+      hlaska: HLASKA_ZRUSENI,
     },
     lang,
   );

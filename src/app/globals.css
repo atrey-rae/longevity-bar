@@ -48,6 +48,13 @@
   ::selection {
     @apply bg-mango-400 text-inkoust;
   }
+
+  /* Sbalené bloky (historie kreditních objednávek) si kreslí vlastní šipku.
+     Safari na iOS přidává k `list-style: none` ještě nativní trojúhelník —
+     bez tohohle by u summary svítily dvě značky vedle sebe. */
+  summary::-webkit-details-marker {
+    display: none;
+  }
 }
 
 @layer components {
