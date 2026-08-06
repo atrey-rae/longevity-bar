@@ -501,6 +501,34 @@ export const cs = {
       "Kupón dostane kamarád na svůj e-mail a platí na e-shopu wildandcoco.com, ne u stánku.",
   },
 
+  /* --- Oznámení (Web Push) ------------------------------------------------ */
+  oznameni: {
+    eyebrow: "Ať ti nic neuteče",
+    nadpis: "Zapnout oznámení?",
+    popis:
+      "Dáme ti vědět, až budeš mít odměnu nebo kredit. Nic jiného posílat nebudeme.",
+    zapnout: "Zapnout oznámení",
+    zapinam: "Zapínám…",
+    zapnuto: "Oznámení máš zapnutá.",
+    vypnout: "Vypnout",
+    chyba: "Oznámení se nepodařilo zapnout. Zkus to prosím znovu.",
+    iosNadpis: "Nejdřív přidej appku na plochu",
+    iosPopis:
+      "Na iPhonu umí oznámení jen appka přidaná na plochu. Přidej ji a pak se sem vrať — tlačítko tu na tebe bude čekat.",
+    /* Automatická oznámení — texty vidí host v systémové liště. */
+    odmenaTitulek: "Máš odměnu!",
+    odmenaText: "Nasbíral jsi 4 razítka. Vyber si, co si dáš.",
+    kreditTitulek: "Dostal jsi kredit",
+    kreditText: (castka: string) => `Na Longevity Baru na tebe čeká ${castka}.`,
+  },
+
+  /* --- Pozvánka na jedno ťuknutí (root catch-all `/<token>`) -------------- */
+  pozvanka: {
+    titulek: "Přihlašujeme tě…",
+    nadpis: "Přihlašujeme tě…",
+    popis: "Za chvilku budeš u svého kreditu a odměn.",
+  },
+
   /* --- Kredit na baru ----------------------------------------------------- */
   kredit: {
     titulek: "Kredit na Longevity Baru",

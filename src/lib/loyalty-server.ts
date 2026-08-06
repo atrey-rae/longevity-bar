@@ -17,6 +17,8 @@ import {
   summarize,
   type LoyaltySummary,
 } from "./loyalty";
+import { getDict } from "./i18n";
+import { poslatNaPozadi } from "./push";
 import { getSettings, type AppSettings } from "./settings";
 import { createAdminClient } from "./supabase/admin";
 import { pragueDateString, pragueDayRange } from "./time";
@@ -293,6 +295,21 @@ export async function awardStamp(
   // 5) Dorovnání stavu (případné založení odměny)
   const after = await getLoyaltyState(user.id);
   const newReward = after.rewards.length > before.rewards.length;
+
+  // 6) Oznámení o nové odměně. FAIL-SOFT a bez čekání: razítko je hlavní akce
+  //    a nesmí se kvůli push notifikaci ani zdržet, ani spadnout. Host navíc
+  //    v tu chvíli většinou kouká přímo na obrazovku s konfetami — oznámení je
+  //    pro ten případ, že telefon mezitím zamkl.
+  if (newReward) {
+    poslatNaPozadi({
+      filtr: "prihlaseni",
+      userIds: [user.id],
+      titulek: (lang) => getDict(lang).oznameni.odmenaTitulek,
+      text: (lang) => getDict(lang).oznameni.odmenaText,
+      url: "/vyber",
+      tag: "odmena",
+    });
+  }
 
   return { status: "ok", newReward, state: after };
 }

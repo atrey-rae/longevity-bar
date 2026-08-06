@@ -14,6 +14,7 @@ const ODKAZY = [
   { href: "/admin/dny", label: "Dny a QR" },
   { href: "/admin/produkty", label: "Produkty" },
   { href: "/admin/uzivatele", label: "Uživatelé" },
+  { href: "/admin/oznameni", label: "Oznámení" },
 ];
 
 export default async function AdminLayout({

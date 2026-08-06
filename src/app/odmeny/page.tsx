@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import Konfety from "@/components/Konfety";
 import EmailOnboarding from "@/components/EmailOnboarding";
 import InstallPrompt from "@/components/InstallPrompt";
+import Oznameni from "@/components/Oznameni";
 import QrKamera from "@/components/QrKamera";
 import RazitkovaKarta from "@/components/RazitkovaKarta";
 import SkenHlaska from "@/components/SkenHlaska";
@@ -29,6 +30,7 @@ import { prvni } from "@/lib/navigation";
 import { formatCzechDateTime } from "@/lib/time";
 import { getSessionUser } from "@/lib/supabase/server";
 import { getEmailStatus } from "@/lib/email-verification-server";
+import { verejnyKlicProKlienta } from "@/lib/push-config";
 
 export const dynamic = "force-dynamic";
 
@@ -348,6 +350,10 @@ export default async function OdmenyPage({
           </form>
         </span>
       </section>
+
+      {/* Až úplně dole, pod účtem: kdo doscrolloval sem, kartu už viděl.
+          Na skenové obrazovce (výhra/razítko) by to jen překáželo. */}
+      {!sken && !jeVyhra && <Oznameni vapidKlic={verejnyKlicProKlienta()} />}
     </div>
   );
 }

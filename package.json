@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "check": "tsx scripts/check-kviz.ts && tsx scripts/check-kviz-profil.ts && tsx scripts/check-quiz-lead-payload.ts && tsx scripts/check-healing-bridge.ts && tsx scripts/check-mobile-ergonomics.ts && tsx scripts/check-bar-auth.ts && tsx scripts/check-stale-qr-entry.ts && tsx scripts/check-longevity-catalog.ts && tsx scripts/check-homepage-hub.ts && tsx scripts/check-public-web-quiz.ts && tsx scripts/check-quiz-access.ts && tsx scripts/check-darek-kredit.ts && tsx scripts/check-referral.ts && tsx scripts/check-i18n.ts && tsx scripts/check-no-icloud-duplicates.ts"
+    "check": "tsx scripts/check-kviz.ts && tsx scripts/check-kviz-profil.ts && tsx scripts/check-quiz-lead-payload.ts && tsx scripts/check-healing-bridge.ts && tsx scripts/check-mobile-ergonomics.ts && tsx scripts/check-bar-auth.ts && tsx scripts/check-stale-qr-entry.ts && tsx scripts/check-longevity-catalog.ts && tsx scripts/check-homepage-hub.ts && tsx scripts/check-public-web-quiz.ts && tsx scripts/check-quiz-access.ts && tsx scripts/check-darek-kredit.ts && tsx scripts/check-referral.ts && tsx scripts/check-invite-links.ts && tsx scripts/check-push.ts && tsx scripts/check-i18n.ts && tsx scripts/check-no-icloud-duplicates.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -17,13 +17,15 @@
     "qr-scanner": "1.4.2",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",

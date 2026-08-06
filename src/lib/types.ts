@@ -58,6 +58,40 @@ export type PhoneIdentityConflict = {
   created_at: string;
 }
 
+/**
+ * Hashovaná osobní pozvánka `/i/<token>` (migrace 009).
+ * `token_hash` = HMAC-SHA256 samotného tokenu s `BAR_AUTH_PEPPER`.
+ */
+export type InviteLink = {
+  id: string;
+  phone: string;
+  token_hash: string;
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+/** Web Push odběr = jedno zařízení (migrace 010). `user_id` je NULL u nepřihlášených. */
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string | null;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  lang: string;
+  created_at: string;
+  last_sent_at: string | null;
+  failed_at: string | null;
+}
+
+/** Hash IP + čas pokusu o uplatnění pozvánky — jen pro rate limit (migrace 009). */
+export type InviteLinkAttempt = {
+  id: string;
+  ip_hash: string;
+  created_at: string;
+}
+
 export type EventDay = {
   id: string;
   date: string; // YYYY-MM-DD
@@ -212,6 +246,29 @@ export interface Database {
           matching_user_ids: string[];
         },
         Partial<PhoneIdentityConflict>
+      >;
+      invite_links: Tabulka<
+        InviteLink,
+        Partial<InviteLink> & {
+          phone: string;
+          token_hash: string;
+          expires_at: string;
+        },
+        Partial<InviteLink>
+      >;
+      invite_link_attempts: Tabulka<
+        InviteLinkAttempt,
+        Partial<InviteLinkAttempt> & { ip_hash: string },
+        Partial<InviteLinkAttempt>
+      >;
+      push_subscriptions: Tabulka<
+        PushSubscriptionRow,
+        Partial<PushSubscriptionRow> & {
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+        },
+        Partial<PushSubscriptionRow>
       >;
       event_days: Tabulka<
         EventDay,

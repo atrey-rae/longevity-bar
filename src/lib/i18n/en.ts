@@ -459,6 +459,31 @@ export const en: Dict = {
       "Your friend gets the coupon by email and it's valid in the wildandcoco.com online shop, not at the stand.",
   },
 
+  oznameni: {
+    eyebrow: "Don't miss a thing",
+    nadpis: "Turn on notifications?",
+    popis:
+      "We'll let you know when a reward or credit is waiting. Nothing else, promise.",
+    zapnout: "Turn on notifications",
+    zapinam: "Turning on…",
+    zapnuto: "Notifications are on.",
+    vypnout: "Turn off",
+    chyba: "We couldn't turn notifications on. Please try again.",
+    iosNadpis: "Add the app to your home screen first",
+    iosPopis:
+      "On iPhone only an app added to the home screen can receive notifications. Add it, then come back — the button will be right here.",
+    odmenaTitulek: "You've earned a reward!",
+    odmenaText: "That's 4 stamps. Pick what you'd like.",
+    kreditTitulek: "You've got credit",
+    kreditText: (castka: string) => `${castka} is waiting for you at the Longevity Bar.`,
+  },
+
+  pozvanka: {
+    titulek: "Signing you in…",
+    nadpis: "Signing you in…",
+    popis: "You'll be at your credit and rewards in a moment.",
+  },
+
   kredit: {
     titulek: "Longevity Bar credit",
     eyebrow: "Longevity Bar credit",

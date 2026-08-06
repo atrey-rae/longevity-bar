@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import Oznameni from "@/components/Oznameni";
 import { getEmailStatus } from "@/lib/email-verification-server";
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import { getT } from "@/lib/i18n/server";
+import { verejnyKlicProKlienta } from "@/lib/push-config";
 import type { Dict } from "@/lib/i18n/types";
 import { getSessionUser } from "@/lib/supabase/server";
 import { korun } from "@/lib/text";
@@ -204,6 +206,11 @@ export default async function Homepage() {
           );
         })}
       </nav>
+
+      {/* Pod kartami, ne nad nimi: oznámení jsou doplněk, ne důvod, proč sem
+          host přišel. Sama se nikdy neptají — dokud host neklepne, prohlížeč
+          systémový dotaz nezobrazí. */}
+      <Oznameni vapidKlic={verejnyKlicProKlienta()} />
 
       <p className="px-3 text-center text-xs leading-relaxed text-kokos-50/60">
         {user ? (

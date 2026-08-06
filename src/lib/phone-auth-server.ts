@@ -219,6 +219,54 @@ async function resolveIdentity(phone: string): Promise<{ userId: string | null; 
   return { userId: null, email: internalAliasForPhone(phone) };
 }
 
+/**
+ * JEDINÁ cesta, jak v téhle appce vznikne session pro telefonní číslo.
+ *
+ * Používá ji ověření SMS kódu (`verifyPhoneCode`) i pozvánka na jedno ťuknutí
+ * (`/i/<token>`). Nesmí existovat druhá kopie: kdyby si pozvánka zakládala
+ * účet po svém, rozešly by se `phone_identities` a `profiles` a host by po
+ * kliknutí na odkaz dostal JINÝ účet než po opsání kódu z SMS.
+ *
+ * Dělá přesně tři věci a všechny musí projít:
+ *   1. najde (nebo připraví alias pro) identitu telefonu,
+ *   2. vygeneruje jednorázový magic-link token pro Supabase Auth,
+ *   3. zapíše `phone_identities` + `profiles`, aby číslo mělo majitele.
+ *
+ * Vrací `tokenHash`, který volající vymění za session (`verifyOtp`).
+ */
+export type SessionProTelefonResult =
+  | { ok: true; tokenHash: string; userId: string }
+  | { ok: false };
+
+export async function vydatSessionProTelefon(
+  phone: string,
+): Promise<SessionProTelefonResult> {
+  const admin = createAdminClient();
+  const resolved = await resolveIdentity(phone);
+  const generated = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email: resolved.email,
+    options: { data: { phone_login: true } },
+  });
+  const authUserId = generated.data.user?.id;
+  const tokenHash = generated.data.properties?.hashed_token;
+  if (!authUserId || !tokenHash) return { ok: false };
+  // Alias vede na jiný účet, než na jaký ukazuje `phone_identities`? Pak si
+  // nejsme jistí, komu číslo patří — session raději nevydáváme vůbec.
+  if (resolved.userId && authUserId !== resolved.userId) return { ok: false };
+  const targetUserId = resolved.userId ?? authUserId;
+  const identityWrite = await admin
+    .from("phone_identities")
+    .upsert({ phone_e164: phone, user_id: targetUserId }, { onConflict: "phone_e164" })
+    .select("user_id")
+    .single();
+  if (identityWrite.error || identityWrite.data?.user_id !== targetUserId) {
+    return { ok: false };
+  }
+  await admin.from("profiles").upsert({ id: targetUserId, phone }, { onConflict: "id" });
+  return { ok: true, tokenHash, userId: targetUserId };
+}
+
 export type VerifyPhoneCodeResult =
   | { ok: true; tokenHash: string; next: string }
   | { ok: false; reason: "invalid" | "expired" | "attempts" };
@@ -245,29 +293,11 @@ export async function verifyPhoneCode(input: {
       : "invalid";
     return { ok: false, reason };
   }
-  const resolved = await resolveIdentity(phone);
-  const generated = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email: resolved.email,
-    options: { data: { phone_login: true } },
-  });
-  const authUserId = generated.data.user?.id;
-  const tokenHash = generated.data.properties?.hashed_token;
-  if (!authUserId || !tokenHash) return { ok: false, reason: "invalid" };
-  if (resolved.userId && authUserId !== resolved.userId) return { ok: false, reason: "invalid" };
-  const targetUserId = resolved.userId ?? authUserId;
-  const identityWrite = await admin.from("phone_identities").upsert(
-    { phone_e164: phone, user_id: targetUserId },
-    { onConflict: "phone_e164" },
-  ).select("user_id").single();
-  if (identityWrite.error || identityWrite.data?.user_id !== targetUserId) {
-    return { ok: false, reason: "invalid" };
-  }
-  await admin.from("profiles").upsert(
-    { id: targetUserId, phone },
-    { onConflict: "id" },
-  );
-  return { ok: true, tokenHash, next: input.next };
+  // Založení účtu a vydání tokenu je SPOLEČNÉ s pozvánkou `/i/<token>` —
+  // viz `vydatSessionProTelefon`. Nikdy to tu neduplikuj zpátky.
+  const session = await vydatSessionProTelefon(phone);
+  if (!session.ok) return { ok: false, reason: "invalid" };
+  return { ok: true, tokenHash: session.tokenHash, next: input.next };
 }
 
 export async function isEmailVerified(userId: string): Promise<boolean> {

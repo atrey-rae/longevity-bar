@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { availableStamps } from "@/lib/loyalty";
 import { getLoyaltyState } from "@/lib/loyalty-server";
 import { requireVerifiedEmailForReward } from "@/lib/email-verification-server";
+import { poslatOznameni, type PushFiltr } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -214,4 +215,50 @@ export async function vratitVyber(formData: FormData): Promise<void> {
 
   revalidatePath(cestaUzivatele(email));
   revalidatePath("/admin");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Hromadné oznámení (Web Push)                                                */
+/* -------------------------------------------------------------------------- */
+
+export type OznameniStav =
+  | { stav: "klid" }
+  | { stav: "ok"; odeslano: number; smazano: number; selhalo: number }
+  | { stav: "chyba"; zprava: string };
+
+/**
+ * Odešle ruční hromadné oznámení.
+ *
+ * `requireAdmin` tu MUSÍ být — server action je veřejný endpoint a ochrana
+ * v layoutu na něj nedosáhne. Bez toho by kdokoli mohl rozeslat push všem
+ * hostům festivalu.
+ */
+export async function odeslatOznameni(formData: FormData): Promise<OznameniStav> {
+  await requireAdmin("/admin/oznameni");
+
+  const titulek = String(formData.get("titulek") ?? "").trim();
+  const text = String(formData.get("text") ?? "").trim();
+  const syrovaUrl = String(formData.get("url") ?? "").trim();
+  const filtr: PushFiltr =
+    formData.get("filtr") === "prihlaseni" ? "prihlaseni" : "vsichni";
+
+  if (titulek.length === 0 || titulek.length > 80) {
+    return { stav: "chyba", zprava: "Titulek musí mít 1–80 znaků." };
+  }
+  if (text.length === 0 || text.length > 200) {
+    return { stav: "chyba", zprava: "Text musí mít 1–200 znaků." };
+  }
+  // Odkaz smí vést jen do appky — cizí doména v oznámení je phishing.
+  if (syrovaUrl !== "" && (!syrovaUrl.startsWith("/") || syrovaUrl.startsWith("//"))) {
+    return { stav: "chyba", zprava: "Odkaz musí být relativní cesta (např. /kredit)." };
+  }
+
+  const vysledek = await poslatOznameni({
+    filtr,
+    titulek,
+    text,
+    url: syrovaUrl === "" ? "/" : syrovaUrl,
+    tag: "admin",
+  });
+  return { stav: "ok", ...vysledek };
 }
