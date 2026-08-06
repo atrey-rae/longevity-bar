@@ -46,7 +46,9 @@ assert.match(catalog, /LONGEVITY_BAR_CATALOG/);
 assert.match(catalog, /loading="lazy"/);
 assert.match(catalog, /item\.usps/);
 assert.match(catalog, /item\.format/);
-assert.equal(LONGEVITY_BAR_CATALOG.length, 34, "Longevity katalog musí zobrazit všech 34 položek");
+// 43 od korekcí 6. 8. 2026 (rozpad příchutí, Modrý lotos ven) — přesný počet
+// hlídá `check-longevity-catalog.ts`, tady jde o to, že katalog vůbec něco má.
+assert.equal(LONGEVITY_BAR_CATALOG.length, 43, "Longevity katalog musí zobrazit všech 43 položek");
 assert.equal(
   new Set(LONGEVITY_BAR_CATALOG.map((item) => item.id)).size,
   LONGEVITY_BAR_CATALOG.length,

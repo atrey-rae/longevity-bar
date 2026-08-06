@@ -48,6 +48,9 @@ const referralServer = read("src/lib/referral-server.ts");
 const referralQr = read("src/lib/referral-qr.ts");
 const reportLib = read("src/lib/report-users.ts");
 const reportRoute = read("src/app/api/internal/report/users/route.ts");
+const reportAuth = read("src/lib/report-auth.ts");
+const odmenyLib = read("src/lib/report-rewards.ts");
+const odmenyRoute = read("src/app/api/internal/report/rewards/route.ts");
 
 const chyby: string[] = [];
 let kontrol = 0;
@@ -376,7 +379,13 @@ function souboryTS(adresar: string): string[] {
   });
 }
 
-const SERVEROVE_MODULY = ["referral-server", "referral-qr", "report-users"];
+const SERVEROVE_MODULY = [
+  "referral-server",
+  "referral-qr",
+  "report-users",
+  "report-rewards",
+  "report-auth",
+];
 let klientskych = 0;
 for (const soubor of souboryTS(join(root, "src"))) {
   const relativni = soubor.slice(root.length);
@@ -413,6 +422,8 @@ for (const [jmeno, zdroj] of [
   ["referral-server", referralServer],
   ["referral-qr", referralQr],
   ["report-users", reportLib],
+  ["report-rewards", odmenyLib],
+  ["report-auth", reportAuth],
 ] as const) {
   overit(
     `${jmeno}: má pojistku proti klientskému bundlu`,
@@ -428,32 +439,63 @@ overit(
 /* G) Interní report uživatelů                                                */
 /* ========================================================================== */
 
-overit("report běží na Node runtime", /export const runtime = "nodejs"/.test(reportRoute));
-overit("report se nesmí cachovat", /export const dynamic = "force-dynamic"/.test(reportRoute));
 // Guard se od zavedení `REPORT_USERS_SECRET` jmenuje `jeAutorizovanyReport`
-// a bridge secret bere jako první možnost. Kontrola proto hlídá obojí: že
-// route pouští dál jen přes guard a že guard pořád stojí na bridge autorizaci.
+// a bridge secret bere jako první možnost. Od přidání reportu odměn bydlí
+// v `lib/report-auth.ts` — jedna implementace pro všechny reporty, aby se
+// při první opravě nerozešly a jeden endpoint nezůstal slabší.
 overit(
-  "report je bez tokenu fail-closed 401",
-  /if \(!jeAutorizovanyReport\(request\.headers\.get\("authorization"\)\)\)/.test(reportRoute) &&
-    /status: 401/.test(reportRoute),
-);
-overit(
-  "guard reportu stojí na bridge autorizaci",
-  /function jeAutorizovanyReport\(hlavicka: string \| null\): boolean \{\s*if \(isAuthorizedHealingBridge\(hlavicka\)\) return true;/.test(
-    reportRoute,
+  "guard reportů stojí na bridge autorizaci",
+  /export function jeAutorizovanyReport\(hlavicka: string \| null\): boolean \{\s*if \(isAuthorizedHealingBridge\(hlavicka\)\) return true;/.test(
+    reportAuth,
   ),
 );
 overit(
-  "401 přijde dřív než jakékoli čtení dat",
-  reportRoute.indexOf("status: 401") < reportRoute.indexOf("sestavitReportUzivatelu()"),
+  "guard bere i vlastní REPORT_USERS_SECRET a je fail-closed",
+  /process\.env\.REPORT_USERS_SECRET/.test(reportAuth) &&
+    /if \(!vlastni \|\| !hlavicka\?\.startsWith\("Bearer "\)\) return false;/.test(reportAuth),
 );
 overit(
-  "odpověď má Cache-Control: no-store",
-  (reportRoute.match(/"Cache-Control": "no-store"/g) ?? []).length >= 3,
+  "guard porovnává v konstantním čase (bez předčasného návratu v cyklu)",
+  /diff \|= token\.charCodeAt\(i\) \^ vlastni\.charCodeAt\(i\);/.test(reportAuth) &&
+    /return diff === 0;/.test(reportAuth),
 );
-overit("report nevrací detail chyby ven", /error: "report selhal"/.test(reportRoute));
-overit("report je jen GET", !/export async function (POST|PUT|PATCH|DELETE)/.test(reportRoute));
+overit(
+  "guard má pojistku proti klientskému bundlu",
+  /typeof window !== "undefined"/.test(reportAuth),
+);
+overit(
+  "žádná route si guard neduplikuje",
+  !/function jeAutorizovanyReport/.test(reportRoute) &&
+    !/function jeAutorizovanyReport/.test(odmenyRoute),
+);
+
+// Oba interní reporty musí splňovat tentýž kontrakt — proto společná smyčka:
+// nový report se nesmí dát přidat s volnějšími pravidly.
+for (const [jmeno, route, sestavitel] of [
+  ["users", reportRoute, "sestavitReportUzivatelu()"],
+  ["rewards", odmenyRoute, "sestavitReportOdmen()"],
+] as const) {
+  overit(`report ${jmeno} běží na Node runtime`, /export const runtime = "nodejs"/.test(route));
+  overit(`report ${jmeno} se nesmí cachovat`, /export const dynamic = "force-dynamic"/.test(route));
+  overit(
+    `report ${jmeno} je bez tokenu fail-closed 401`,
+    /if \(!jeAutorizovanyReport\(request\.headers\.get\("authorization"\)\)\)/.test(route) &&
+      /status: 401/.test(route),
+  );
+  overit(
+    `report ${jmeno}: 401 přijde dřív než jakékoli čtení dat`,
+    route.indexOf("status: 401") < route.indexOf(sestavitel),
+  );
+  overit(
+    `report ${jmeno} má Cache-Control: no-store`,
+    (route.match(/"Cache-Control": "no-store"/g) ?? []).length >= 3,
+  );
+  overit(`report ${jmeno} nevrací detail chyby ven`, /error: "report selhal"/.test(route));
+  overit(
+    `report ${jmeno} je jen GET`,
+    !/export async function (POST|PUT|PATCH|DELETE)/.test(route),
+  );
+}
 // Konzument `scripts/sync_bar_users_report.py` dělá `for l in json.load(r)` —
 // obalení do objektu by mu zrcadlení do Sheetu rozbilo.
 overit(
@@ -484,6 +526,37 @@ for (const pole of [
 ]) {
   overit(`report má pole ${pole}`, new RegExp(`\\b${pole}:`).test(reportLib));
 }
+
+/* --- Report vydaných odměn (evidence) ------------------------------------- */
+
+for (const pole of ["vydano", "jmeno", "telefon", "produkt", "kategorie"]) {
+  overit(`report odměn má pole ${pole}`, new RegExp(`\\b${pole}:`).test(odmenyLib));
+}
+// Tabulka `rewards` NEMÁ sloupec `issued_at` — výdej je `state = 'redeemed'`
+// plus `redeemed_at` (migrace 001). Kdyby se filtr rozešel se schématem,
+// evidence by buď mlčela, nebo vydávala nevydané odměny.
+overit(
+  "report odměn bere jen skutečně vydané",
+  /\.eq\("state", "redeemed"\)/.test(odmenyLib) &&
+    /\.not\("redeemed_at", "is", null\)/.test(odmenyLib),
+);
+overit(
+  "report odměn řadí podle času výdeje",
+  /\.order\("redeemed_at", \{ ascending: true \}\)/.test(odmenyLib) &&
+    /radky\.sort\(\(a, b\) => a\.vydano\.localeCompare\(b\.vydano\)\)/.test(odmenyLib),
+);
+overit(
+  "report odměn nesahá na neexistující issued_at",
+  !/issued_at/.test(odmenyLib.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")),
+);
+overit(
+  "telefon v evidenci je normalizovaný na E.164",
+  /normalizeCzechPhone/.test(odmenyLib) && /phone_e164/.test(odmenyLib),
+);
+overit(
+  "úspěšná odpověď reportu odměn je holé pole řádků",
+  /NextResponse\.json\(rewards, \{/.test(odmenyRoute),
+);
 overit("report skrývá interní alias telefonního loginu", /isInternalAuthEmail/.test(reportLib));
 overit("report řadí podle registrace", /radky\.sort\(\(a, b\) => a\.signup\.localeCompare\(b\.signup\)\)/.test(reportLib));
 overit(

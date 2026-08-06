@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import QuizVariantSelector from "@/components/QuizVariantSelector";
+import { getEmailStatus } from "@/lib/email-verification-server";
 import { getT } from "@/lib/i18n/server";
 import {
+  PRAZDNY_KONTAKT,
   PUBLIC_WEB_QUIZ_HOST,
   VSICHNI_HOSTE,
   najitBavice,
+  type PredvyplnenyKontakt,
 } from "@/lib/kviz";
 import { getHostQuizVariant } from "@/lib/kviz-hosts";
 import { prvni } from "@/lib/navigation";
+import { getSessionPhoneE164 } from "@/lib/phone-auth-server";
 import { completedQuizVariants, getQuizPolicy } from "@/lib/quiz-access";
 import { REFERRAL_PARAM, normalizovatReferralKod, sReferralem } from "@/lib/referral";
 import { getSessionUser } from "@/lib/supabase/server";
@@ -76,7 +80,10 @@ export default async function KvizPage({
     const cil = sReferralem(`/kviz/${bavic.slug}`, referralKod);
     redirect(`/prihlaseni?next=${encodeURIComponent(cil)}`);
   }
-  const completed = await completedQuizVariants(user?.id ?? null);
+  const [completed, predvyplneni] = await Promise.all([
+    completedQuizVariants(user?.id ?? null),
+    predvyplnitKontakt(user?.id ?? null),
+  ]);
 
   return (
     <div className="obal">
@@ -85,7 +92,36 @@ export default async function KvizPage({
         recommended={varianta}
         completed={completed}
         referralKod={referralKod}
+        predvyplneni={predvyplneni}
       />
     </div>
   );
+}
+
+/**
+ * Kontakt, který o přihlášeném hostovi UŽ VÍME — telefon ze session (E.164
+ * z `phone_identities`, zálohou normalizovaný `profiles.phone`) a e-mail, ale
+ * jen ověřený.
+ *
+ * Neověřenou adresu záměrně nenabízíme: host by ji odklepl a kupón by mu odešel
+ * někam, kam se nikdy nedostal. Cokoli selže → prázdno a formulář se vyplňuje
+ * ručně jako dřív; předvyplnění nikdy nesmí shodit kvíz u stánku.
+ */
+async function predvyplnitKontakt(
+  userId: string | null,
+): Promise<PredvyplnenyKontakt> {
+  if (!userId) return PRAZDNY_KONTAKT;
+  try {
+    const [telefon, email] = await Promise.all([
+      getSessionPhoneE164(userId),
+      getEmailStatus(userId),
+    ]);
+    return {
+      email: email.verified ? email.email ?? "" : "",
+      telefon: telefon ?? "",
+    };
+  } catch (e) {
+    console.warn("[kviz] kontakt se nepodařilo předvyplnit:", e);
+    return PRAZDNY_KONTAKT;
+  }
 }

@@ -27,6 +27,7 @@ import { cs } from "../src/lib/i18n/cs";
 import { en } from "../src/lib/i18n/en";
 import {
   KREDIT_NEDOSTUPNY,
+  KREDIT_NENI,
   nacistStavKreditu,
   normalizovatPolozky,
   objednatZKreditu,
@@ -278,21 +279,42 @@ for (const spatny of ["", "601123456", "420601123456", "+420 601 123 456", "+abc
   assert.equal(volani.init?.cache, "no-store", "stav kreditu se nesmí cachovat");
 }
 
-// Selhání na straně bridge = žádný kredit, nikdy dohadování.
-for (const [popis, odpoved] of [
-  ["HTTP 500", () => json({ error: "boom" }, 500)],
-  ["HTTP 401", () => json({ error: "unauthorized" }, 401)],
-  ["nečitelné tělo", () => new Response("<html>", { status: 200 })],
-  ["eligible bez kreditu", () => json({ eligible: true, credit: null })],
-  ["eligible s rozbitým kreditem", () => json({ eligible: true, credit: { total: "x" } })],
-  ["eligible false", () => json({ eligible: false, credit: null })],
-  ["prázdná odpověď", () => json(null)],
+// Selhání na straně bridge = žádný kredit, nikdy dohadování. Od 6. 8. 2026 se
+// navíc rozlišuje „NEVÍME“ (`nedostupny`) od „opravdu nic“ (`neni`) — jen tak
+// může /kredit přestat tvrdit hostovi, že nárok nemá, když je rozbitý most.
+for (const [popis, odpoved, ocekavano] of [
+  ["HTTP 500", () => json({ error: "boom" }, 500), KREDIT_NEDOSTUPNY],
+  ["HTTP 401", () => json({ error: "unauthorized" }, 401), KREDIT_NEDOSTUPNY],
+  ["nečitelné tělo", () => new Response("<html>", { status: 200 }), KREDIT_NEDOSTUPNY],
+  ["eligible bez kreditu", () => json({ eligible: true, credit: null }), KREDIT_NEDOSTUPNY],
+  [
+    "eligible s rozbitým kreditem",
+    () => json({ eligible: true, credit: { total: "x" } }),
+    KREDIT_NEDOSTUPNY,
+  ],
+  ["eligible false", () => json({ eligible: false, credit: null }), KREDIT_NENI],
+  ["prázdná odpověď", () => json(null), KREDIT_NEDOSTUPNY],
 ] as const) {
   const stav = await sEnv(BASE, SECRET, () =>
     nacistStavKreditu(TELEFON, fakeFetch(odpoved)),
   );
-  assert.deepEqual(stav, KREDIT_NEDOSTUPNY, `${popis}: musí skončit bez kreditu`);
+  assert.deepEqual(stav, ocekavano, `${popis}: musí skončit bez kreditu`);
+  assert.equal(stav.eligible, false, `${popis}: eligible musí zůstat false`);
 }
+
+// Oba „prázdné“ stavy se liší JEN dostupností — nikdy obsahem.
+assert.equal(KREDIT_NEDOSTUPNY.dostupnost, "nedostupny");
+assert.equal(KREDIT_NENI.dostupnost, "neni");
+assert.deepEqual(
+  { ...KREDIT_NEDOSTUPNY, dostupnost: null },
+  { ...KREDIT_NENI, dostupnost: null },
+  "oba stavy musí zůstat bez kreditu, katalogu i objednávek",
+);
+assert.equal(
+  parsovatStavKreditu({ eligible: true, credit: { total: 1, spent: 0, remaining: 1 } })
+    .dostupnost,
+  "kredit",
+);
 
 // Výjimka ze sítě nesmí probublat do server komponenty.
 {
@@ -371,31 +393,34 @@ assert.deepEqual(normalizovatPolozky([{ id: "a", qty: 2 }]), [{ id: "a", qty: 2 
   });
 }
 
-// Hláška z bridge se hostovi ukáže, technický detail nikdy.
-{
-  const kratka = await sEnv(BASE, SECRET, () =>
-    objednatZKreditu(
-      TELEFON,
-      [{ id: "c1", qty: 1 }],
-      fakeFetch(() => json({ error: "Nemáš dost kreditu." }, 400)),
-    ),
+// Text z mostu se hostovi NIKDY nepropouští — ani ten „hezký“. Je psaný pro
+// jinou appku, není přeložený a může nést technický detail. Host proto vždycky
+// vidí vlastní znění Bar.app, jen podle toho, co dělal.
+for (const [popis, odpoved] of [
+  ["krátká hláška z bridge", () => json({ error: "Nemáš dost kreditu." }, 400)],
+  ["bez hlášky", () => json({}, 500)],
+  ["cizí HTML", () => new Response("<html>rozbito</html>", { status: 502 })],
+  ["konfigurační detail", () => json({ error: "ECONNREFUSED 10.0.0.4:8080" }, 500)],
+] as const) {
+  const vysledek = await sEnv(BASE, SECRET, () =>
+    objednatZKreditu(TELEFON, [{ id: "c1", qty: 1 }], fakeFetch(odpoved)),
   );
-  assert.equal(kratka.ok, false);
-  assert.equal(kratka.ok === false && kratka.zprava, "Nemáš dost kreditu.");
+  assert.equal(vysledek.ok, false, `${popis}: musí skončit chybou`);
+  assert.equal(
+    vysledek.ok === false && vysledek.zprava,
+    cs.kredit.chybaObjednavky,
+    `${popis}: host vidí vlastní hlášku appky`,
+  );
+}
 
-  const bezHlasky = await sEnv(BASE, SECRET, () =>
-    objednatZKreditu(
-      TELEFON,
-      [{ id: "c1", qty: 1 }],
-      fakeFetch(() => json({}, 500)),
-    ),
+// Výdej má vlastní hlášku — „objednávku se nepodařilo odeslat“ by u pultu
+// obsluhu jen mátlo.
+{
+  const vydej = await sEnv(BASE, SECRET, () =>
+    vydatObjednavku(TELEFON, "o1", fakeFetch(() => json({ error: "boom" }, 500))),
   );
-  assert.equal(bezHlasky.ok, false);
-  assert.match(
-    bezHlasky.ok === false ? bezHlasky.zprava : "",
-    /^Kredit se teď nepodařilo načíst/,
-    "technický detail se hostovi neukazuje",
-  );
+  assert.equal(vydej.ok, false);
+  assert.equal(vydej.ok === false && vydej.zprava, cs.chyby.vydejSelhal);
 }
 }
 
@@ -405,6 +430,32 @@ assert.deepEqual(normalizovatPolozky([{ id: "a", qty: 2 }]), [{ id: "a", qty: 2 
 
 assert.match(kredit, /redirect\(`\/prihlaseni\?next=/, "/kredit musí vyžadovat přihlášení");
 assert.match(kredit, /!stav\.eligible/, "/kredit musí ošetřit hosty bez kreditu");
+// Třetí stav: při rozbitém mostu se nesmí tvrdit „nemáš nárok“. Větev musí
+// přijít DŘÍV než ta o chybějícím kreditu, jinak by ji nikdy nedosáhla.
+assert.match(
+  kredit,
+  /stav\.dostupnost === "nedostupny"/,
+  "/kredit musí rozlišit nedostupný most od chybějícího kreditu",
+);
+assert.ok(
+  kredit.indexOf('stav.dostupnost === "nedostupny"') < kredit.indexOf("!stav.eligible"),
+  "větev nedostupného mostu musí předcházet větvi bez kreditu",
+);
+assert.match(kredit, /<ZkusitZnovu \/>/, "/kredit musí nabídnout opakování načtení");
+assert.ok(
+  cs.kredit.nedostupnyNadpis.trim().length > 0 &&
+    en.kredit.nedostupnyNadpis.trim().length > 0 &&
+    cs.kredit.zkusitZnovu.trim().length > 0 &&
+    en.kredit.zkusitZnovu.trim().length > 0,
+  "třetí stav kreditu musí být dvojjazyčný",
+);
+assert.doesNotMatch(
+  cs.kredit.nedostupnyPopis,
+  /nemáš|nárok/i,
+  "hláška o nedostupnosti nesmí tvrdit, že host nárok nemá",
+);
+const zkusitZnovu = read("src/components/ZkusitZnovu.tsx");
+assert.match(zkusitZnovu, /router\.refresh\(\)/, "opakování jede přes router.refresh()");
 assert.match(kredit, /<ZiveHodiny \/>/, "vstupenka musí mít živé hodiny");
 assert.match(
   kredit,

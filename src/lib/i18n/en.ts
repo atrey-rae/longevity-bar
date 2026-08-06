@@ -95,6 +95,7 @@ export const en: Dict = {
     prihlasitSe: "Sign in",
     odhlasit: "Sign out",
     ulozit: "Save",
+    ukladam: "Saving…",
     administrace: "Admin",
     pravidlaAGdpr: "Terms & privacy",
     krestniJmeno: "First name",
@@ -175,6 +176,15 @@ export const en: Dict = {
     podnadpisOdmeny:
       "Once you're signed in we'll open your loyalty card and every reward you've collected.",
     podnadpisObecny: "Every 4 stamps earn you a free reward of your choice.",
+    nadpisKviz: `One step from your ${SLEVA_PROCENT}% off`,
+    podnadpisKvizPred: "This quiz comes to you from",
+    podnadpisKvizPo:
+      "at the Longevity Bar — once you're signed in we'll take you right back to where you left off.",
+    podnadpisKvizBezBavice:
+      "Once you're signed in we'll take you right back to the quiz where you left off.",
+    procTelefonKviz: `We ask for your phone number because the ${SLEVA_PROCENT}% coupon is personal — we issue it once and only to you, so nobody else can use it.`,
+    souhlasKvizPred:
+      "By signing in you agree to us processing your phone number. You'll enter your email inside the quiz and we'll use it to send the coupon — it doesn't sign you up for the loyalty programme. Details in the",
     chybaOauth:
       "Signing in with Google didn't finish. Please try again or use your phone number.",
     souhlasPred:
@@ -205,6 +215,8 @@ export const en: Dict = {
       chybaSms: "We couldn't send the SMS.",
       chybaSmsKod: "We couldn't send the SMS with your code.",
       chybaDelkaKodu: "The code has 4 digits.",
+      chybaLimitSms:
+        "We've already sent the code 3 times in the last 15 minutes. Try again in a few minutes, or sign in with Google.",
       chybaKod: "That code doesn't match or has expired.",
       chybaKodVyprsel: "That code doesn't match or has already expired.",
       chybaGoogle:
@@ -452,6 +464,10 @@ export const en: Dict = {
     zadnyNadpis: "No credit waiting for you",
     zadnyPopis:
       "Longevity Bar credit belongs to festival guests it was assigned to by the team in the Healing app. If you think yours should be here, have a word with the team at the bar.",
+    nedostupnyNadpis: "We can't load your credit right now",
+    nedostupnyPopis:
+      "Please try again in a moment, or show this screen to the team at the bar.",
+    zkusitZnovu: "Try again",
     zustatek: (zbyva: string, celkem: string) =>
       `left of ${zbyva} · ${celkem} spent`,
     ukazObsluze: "Show this to the team at the bar",
@@ -551,6 +567,12 @@ export const en: Dict = {
     vybrat: "Choose →",
     posilaTePred: "Sent your way by",
     posilaTePo: "from the Longevity Bar.",
+
+    obeHotovoNadpis: "You've completed both quizzes",
+    obeHotovoPopis:
+      "There's no further quiz coupon waiting for you — but you can pass the discount on to your friends or browse the whole range.",
+    obeHotovoDarek: "Give your friends the discount →",
+    obeHotovoSortiment: "Browse the WILD&COCO range →",
 
     uvodNadpisPred: "Unlock your",
     uvodNadpisPo: "microbiome's potential!",

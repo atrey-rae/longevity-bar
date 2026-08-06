@@ -26,6 +26,7 @@ if (typeof window !== "undefined") {
 
 import { getDict } from "./i18n";
 import { DEFAULT_LANG, type Lang } from "./i18n/lang";
+import type { Dict } from "./i18n/types";
 
 const CASOVY_LIMIT_MS = 6000;
 
@@ -62,15 +63,37 @@ export type BarCreditObjednavka = {
   issuedAt: string | null;
 };
 
+/**
+ * Tři stavy, ne dva. „Nevíme“ (`nedostupny`) a „opravdu nic“ (`neni`) vypadaly
+ * dřív stejně, takže hostovi při výpadku mostu appka tvrdila, že nárok nemá.
+ *
+ *   `kredit`      — most odpověděl a kredit tu je,
+ *   `neni`        — most odpověděl a kredit tu opravdu není,
+ *   `nedostupny`  — most nedopověděl, odpověděl nesmysl nebo chybí konfigurace;
+ *                   o nároku hosta z toho NEPLYNE NIC.
+ */
+export type BarCreditDostupnost = "kredit" | "neni" | "nedostupny";
+
 export type BarCreditStav = {
+  dostupnost: BarCreditDostupnost;
   eligible: boolean;
   credit: { total: number; spent: number; remaining: number } | null;
   catalog: BarCreditPolozka[];
   orders: BarCreditObjednavka[];
 };
 
-/** Jediný tvar „kredit tu pro tebe není“ — používá se při každém selhání. */
+/** „Nevíme.“ Používá se při každém selhání — nikdy netvrdí, že nárok není. */
 export const KREDIT_NEDOSTUPNY: BarCreditStav = {
+  dostupnost: "nedostupny",
+  eligible: false,
+  credit: null,
+  catalog: [],
+  orders: [],
+};
+
+/** „Most odpověděl a kredit tu pro tebe není.“ */
+export const KREDIT_NENI: BarCreditStav = {
+  dostupnost: "neni",
   eligible: false,
   credit: null,
   catalog: [],
@@ -91,6 +114,13 @@ export type ObjednavkaPolozka = { id: string; qty: number };
 function obecnaChyba(lang: Lang): string {
   return getDict(lang).chyby.kreditNedostupny;
 }
+
+/** Výběr hlášky ze slovníku — každá cesta k mostu má tu svoji. */
+type VyberHlasky = (t: Dict) => string;
+
+const HLASKA_STAV: VyberHlasky = (t) => t.chyby.kreditNedostupny;
+const HLASKA_OBJEDNAVKA: VyberHlasky = (t) => t.kredit.chybaObjednavky;
+const HLASKA_VYDEJ: VyberHlasky = (t) => t.chyby.vydejSelhal;
 
 /* -------------------------------------------------------------------------- */
 /* Konfigurace                                                                 */
@@ -208,7 +238,10 @@ function parsovatObjednavky(hodnota: unknown): BarCreditObjednavka[] {
  */
 export function parsovatStavKreditu(telo: unknown): BarCreditStav {
   const o = zaznam(telo);
-  if (!o || o.eligible !== true) return KREDIT_NEDOSTUPNY;
+  // Nečitelná odpověď není odpověď — o nároku hosta nevíme nic.
+  if (!o) return KREDIT_NEDOSTUPNY;
+  // Tady naopak most odpověděl srozumitelně: kredit tu opravdu není.
+  if (o.eligible !== true) return KREDIT_NENI;
 
   const kredit = zaznam(o.credit);
   const total = cislo(kredit?.total);
@@ -220,6 +253,7 @@ export function parsovatStavKreditu(telo: unknown): BarCreditStav {
   }
 
   return {
+    dostupnost: "kredit",
     eligible: true,
     credit: { total, spent, remaining },
     catalog: parsovatKatalog(o.catalog),
@@ -236,16 +270,19 @@ type Volani = {
   metoda: "GET" | "POST";
   telo?: unknown;
   fetchImpl: FetchLike;
+  /** Hláška pro hosta při JAKÉMKOLI selhání téhle cesty. */
+  hlaska?: VyberHlasky;
 };
 
 async function zavolat(
-  { cesta, metoda, telo, fetchImpl }: Volani,
+  { cesta, metoda, telo, fetchImpl, hlaska = HLASKA_STAV }: Volani,
   lang: Lang = DEFAULT_LANG,
 ): Promise<VysledekKreditu> {
+  const zpravaProHosta = hlaska(getDict(lang));
   const config = konfigurace();
   if (!config) {
     console.warn("[kredit] HEALING_CREDIT_BRIDGE_URL/HEALING_BRIDGE_SECRET chybí.");
-    return { ok: false, zprava: obecnaChyba(lang) };
+    return { ok: false, zprava: zpravaProHosta };
   }
 
   try {
@@ -263,23 +300,17 @@ async function zavolat(
 
     const data = await odpoved.json().catch(() => null);
     if (!odpoved.ok) {
+      // Text z mostu jde JEN do logu. Do UI se nikdy nepropouští: je psaný pro
+      // jinou appku, není přeložený a může nést i technický detail.
       const duvod = text(zaznam(data)?.error) ?? `HTTP ${odpoved.status}`;
       console.warn(`[kredit] bridge odmítl ${metoda} ${cesta}:`, duvod);
-      // Hláška z bridge je pro hosta (např. „nedostatek kreditu“), ale jen
-      // když je krátká a čitelná — jinak jde obecná.
-      return {
-        ok: false,
-        zprava:
-          duvod.length <= 120 && !duvod.startsWith("HTTP")
-            ? duvod
-            : obecnaChyba(lang),
-      };
+      return { ok: false, zprava: zpravaProHosta };
     }
 
     return { ok: true, stav: parsovatStavKreditu(data) };
   } catch (e) {
     console.warn(`[kredit] bridge nedostupný (${metoda} ${cesta}):`, e);
-    return { ok: false, zprava: obecnaChyba(lang) };
+    return { ok: false, zprava: zpravaProHosta };
   }
 }
 
@@ -338,6 +369,7 @@ export async function objednatZKreditu(
       metoda: "POST",
       telo: { phone: telefon, items },
       fetchImpl,
+      hlaska: HLASKA_OBJEDNAVKA,
     },
     lang,
   );
@@ -359,6 +391,7 @@ export async function vydatObjednavku(
       metoda: "POST",
       telo: { phone: telefon, orderId: id },
       fetchImpl,
+      hlaska: HLASKA_VYDEJ,
     },
     lang,
   );

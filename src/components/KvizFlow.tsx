@@ -14,6 +14,7 @@ import {
   OTAZKA_1,
   OTAZKA_2,
   OTAZKA_3,
+  PRAZDNY_KONTAKT,
   PRODUKTY,
   doporucitProdukty,
   type Bavic,
@@ -22,6 +23,7 @@ import {
   type OdpovedQ1,
   type OdpovedQ2,
   type OdpovedQ3,
+  type PredvyplnenyKontakt,
 } from "@/lib/kviz";
 
 type Krok = "uvod" | "q1" | "q2" | "q3" | "vyber" | "formular";
@@ -48,10 +50,13 @@ const POCET_OTAZEK = 3;
 export default function KvizFlow({
   bavic,
   referralKod = null,
+  predvyplneni = PRAZDNY_KONTAKT,
 }: {
   bavic: Bavic;
   /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
   referralKod?: string | null;
+  /** Kontakt přihlášeného hosta — jen výchozí hodnota, ne zámek. */
+  predvyplneni?: PredvyplnenyKontakt;
 }) {
   const t = useT();
   const lang = useLang();
@@ -65,8 +70,10 @@ export default function KvizFlow({
   const [oblibenyZ, setOblibenyZ] = useState<Krok>("q1");
 
   const [jmeno, setJmeno] = useState("");
-  const [email, setEmail] = useState("");
-  const [telefon, setTelefon] = useState("");
+  // Přihlášený host už nám telefon i ověřený e-mail dal — přepisovat je může,
+  // ale opisovat je z hlavy u stánku nemusí.
+  const [email, setEmail] = useState(predvyplneni.email);
+  const [telefon, setTelefon] = useState(predvyplneni.telefon);
 
   const [vysledek, akce, ceka] = useActionState<VysledekKuponu | null, FormData>(
     odeslatKvizLead,

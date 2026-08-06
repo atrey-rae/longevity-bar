@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { useT } from "@/lib/i18n/client";
+import { useLang, useT } from "@/lib/i18n/client";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 
 type Krok = "telefon" | "kod";
@@ -16,6 +16,7 @@ const CEKANI_NA_ZNOVUPOSLANI_S = 45;
 export default function PrihlaseniFormular({ next }: { next: string }) {
   const t = useT();
   const f = t.prihlaseni.formular;
+  const lang = useLang();
   const router = useRouter();
 
   const [krok, setKrok] = useState<Krok>("telefon");
@@ -30,6 +31,9 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
     null,
   );
   const [chyba, setChyba] = useState<string | null>(null);
+  // Chyby ze zabaleného e-mailového přihlášení mají vlastní místo přímo
+  // v `<details>` — jinak by hlásily problém dva bloky nad formulářem.
+  const [chybaLegacy, setChybaLegacy] = useState<string | null>(null);
   const [odpocet, setOdpocet] = useState(0);
 
   useEffect(() => {
@@ -86,9 +90,19 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
       const response = await fetch("/api/auth/telefon/poslat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: telefon }),
+        body: JSON.stringify({ phone: telefon, lang }),
       });
-      const data = await response.json() as { challengeId?: string | null; expiresAt?: string | null; error?: string };
+      const data = await response.json() as {
+        challengeId?: string | null;
+        expiresAt?: string | null;
+        retryAfterSeconds?: number | null;
+        error?: string;
+      };
+      // Rate limit: server ho hlásí stejně pro každé číslo, takže hláška
+      // nemůže prozradit, jestli u nás účet existuje.
+      if (!data.challengeId && typeof data.retryAfterSeconds === "number") {
+        throw new Error(f.chybaLimitSms);
+      }
       if (!response.ok || !data.challengeId) throw new Error(data.error || f.chybaSms);
       setChallengeId(data.challengeId);
       setExpiresAt(data.expiresAt ?? null);
@@ -136,27 +150,27 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
   async function poslatLegacyEmailKod() {
     const email = legacyEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setChyba(f.chybaLegacyEmail); return;
+      setChybaLegacy(f.chybaLegacyEmail); return;
     }
-    setNacita("kod"); setChyba(null);
+    setNacita("kod"); setChybaLegacy(null);
     try {
       const supabase = getBrowserSupabase();
       const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
       if (error) throw error;
       setLegacyEmail(email); setLegacyCekaNaKod(true);
-    } catch { setChyba(f.chybaLegacyPoslani); }
+    } catch { setChybaLegacy(f.chybaLegacyPoslani); }
     finally { setNacita(null); }
   }
 
   async function overitLegacyEmailKod() {
-    if (!/^\d{6}$/.test(legacyKod)) { setChyba(f.chybaLegacyDelka); return; }
-    setNacita("overeni"); setChyba(null);
+    if (!/^\d{6}$/.test(legacyKod)) { setChybaLegacy(f.chybaLegacyDelka); return; }
+    setNacita("overeni"); setChybaLegacy(null);
     try {
       const supabase = getBrowserSupabase();
       const { error } = await supabase.auth.verifyOtp({ email: legacyEmail, token: legacyKod, type: "email" });
       if (error) throw error;
       router.replace(next); router.refresh();
-    } catch { setChyba(f.chybaLegacyKod); setNacita(null); }
+    } catch { setChybaLegacy(f.chybaLegacyKod); setNacita(null); }
   }
 
   return (
@@ -182,6 +196,17 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
           </div>
           {expiresAt && <p className="text-center text-xs text-kokos-50/50">{f.kodPlati}</p>}
         </div>
+      )}
+
+      {/* Chyba patří pod krok, který ji způsobil — dole pod Google blokem si jí
+          na mobilu nikdo nevšiml, protože byla mimo obrazovku. */}
+      {chyba && (
+        <p
+          role="alert"
+          className="rounded-xl bg-zapad-600/90 px-4 py-3 text-center text-sm font-bold text-white"
+        >
+          {chyba}
+        </p>
       )}
 
       <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-kokos-50/50"><span className="h-px flex-1 bg-white/20" />{f.nebo}<span className="h-px flex-1 bg-white/20" /></div>
@@ -225,17 +250,16 @@ export default function PrihlaseniFormular({ next }: { next: string }) {
             <input className="vstup text-center text-2xl tracking-[0.35em]" inputMode="numeric" maxLength={6} value={legacyKod} onChange={(event) => setLegacyKod(event.target.value.replace(/\D/g, ""))} />
             <button type="button" className="tlacitko-vedlejsi w-full" disabled={nacita !== null} onClick={() => void overitLegacyEmailKod()}>{f.legacyOverit}</button>
           </>}
+          {chybaLegacy && (
+            <p
+              role="alert"
+              className="rounded-xl bg-zapad-600/90 px-4 py-3 text-center text-sm font-bold text-white"
+            >
+              {chybaLegacy}
+            </p>
+          )}
         </div>
       </details>
-
-      {chyba && (
-        <p
-          role="alert"
-          className="rounded-xl bg-zapad-600/90 px-4 py-3 text-center text-sm font-bold text-white"
-        >
-          {chyba}
-        </p>
-      )}
     </div>
   );
 }

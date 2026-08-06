@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 
+import { DEFAULT_LANG, type Lang } from "@/lib/i18n/lang";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   IP_RATE_MAX,
@@ -35,7 +36,13 @@ export function internalAliasForPhone(phone: string): string {
 
 type SmsFetch = typeof fetch;
 
-export async function sendSms(phone: string, code: string, fetchImpl: SmsFetch = fetch): Promise<boolean> {
+export async function sendSms(
+  phone: string,
+  code: string,
+  fetchImpl: SmsFetch = fetch,
+  lang: Lang = DEFAULT_LANG,
+): Promise<boolean> {
+  const zprava = smsText(code, lang);
   const token = process.env.OPTIMCALL_TOKEN;
   const deviceId = process.env.OPTIMCALL_DEVICE_ID;
   if (token && deviceId) {
@@ -53,7 +60,7 @@ export async function sendSms(phone: string, code: string, fetchImpl: SmsFetch =
         credentials,
         deviceId,
         to: [phone],
-        message: smsText(code),
+        message: zprava,
         requestSmsId: true,
       }),
     });
@@ -74,7 +81,7 @@ export async function sendSms(phone: string, code: string, fetchImpl: SmsFetch =
       accept: "application/json",
       authorization: `Bearer ${bridgeSecret}`,
     },
-    body: JSON.stringify({ phone, message: smsText(code) }),
+    body: JSON.stringify({ phone, message: zprava }),
     signal: AbortSignal.timeout(8_000),
   });
   if (!response.ok) return false;
@@ -86,10 +93,47 @@ export type RequestPhoneCodeResult = {
   accepted: true;
   challengeId: string | null;
   expiresAt: string | null;
+  /**
+   * Vyplněné JEN při rate limitu — a to pro každé číslo stejně, ať u nás účet
+   * existuje nebo ne. Neprozrazuje tedy nic o uživateli, jen že z tohohle
+   * čísla/IP už během okna odešly všechny povolené SMS. Selhání SMS naopak
+   * zůstává nerozeznatelné od úspěchu (`null`), jinak by šlo číslo probovat.
+   */
+  retryAfterSeconds: number | null;
 };
 
+/**
+ * Za jak dlouho se okno rate limitu uvolní. Počítá se z NEJSTARŠÍ výzvy v okně;
+ * když žádnou nenajdeme (limit spadl na IP, ne na číslo), vrací se celé okno.
+ * Obě větve vrací číslo, takže se z hodnoty nedá poznat, která zabrala.
+ */
+async function zbyvaDoUvolneni(phone: string, windowStart: string, now: number): Promise<number> {
+  const celeOkno = Math.ceil(PHONE_RATE_WINDOW_MS / 1000);
+  try {
+    const admin = createAdminClient();
+    const nejstarsi = await admin
+      .from("phone_auth_challenges")
+      .select("created_at")
+      .eq("phone_e164", phone)
+      .gte("created_at", windowStart)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const vznik = nejstarsi.data?.created_at ? Date.parse(nejstarsi.data.created_at) : NaN;
+    if (!Number.isFinite(vznik)) return celeOkno;
+    const zbyva = Math.ceil((vznik + PHONE_RATE_WINDOW_MS - now) / 1000);
+    return Math.min(celeOkno, Math.max(1, zbyva));
+  } catch {
+    return celeOkno;
+  }
+}
+
 /** Odpověď je záměrně stejná i při rate limitu či selhání SMS. */
-export async function requestPhoneCode(rawPhone: string, rawIp: string): Promise<RequestPhoneCodeResult> {
+export async function requestPhoneCode(
+  rawPhone: string,
+  rawIp: string,
+  lang: Lang = DEFAULT_LANG,
+): Promise<RequestPhoneCodeResult> {
   const phone = normalizeCzechPhone(rawPhone);
   const admin = createAdminClient();
   const now = Date.now();
@@ -100,7 +144,12 @@ export async function requestPhoneCode(rawPhone: string, rawIp: string): Promise
     admin.from("phone_auth_challenges").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", windowStart),
   ]);
   if ((phoneCount.count ?? 0) >= PHONE_RATE_MAX || (ipCount.count ?? 0) >= IP_RATE_MAX) {
-    return { accepted: true, challengeId: null, expiresAt: null };
+    return {
+      accepted: true,
+      challengeId: null,
+      expiresAt: null,
+      retryAfterSeconds: await zbyvaDoUvolneni(phone, windowStart, now),
+    };
   }
 
   const code = generateFourDigitCode();
@@ -120,14 +169,16 @@ export async function requestPhoneCode(rawPhone: string, rawIp: string): Promise
     })
     .select("id")
     .single();
-  if (inserted.error || !inserted.data) return { accepted: true, challengeId: null, expiresAt: null };
+  if (inserted.error || !inserted.data) {
+    return { accepted: true, challengeId: null, expiresAt: null, retryAfterSeconds: null };
+  }
 
-  const sent = await sendSms(phone, code).catch(() => false);
+  const sent = await sendSms(phone, code, fetch, lang).catch(() => false);
   if (!sent) {
     await admin.from("phone_auth_challenges").update({ consumed_at: new Date().toISOString() }).eq("id", inserted.data.id);
-    return { accepted: true, challengeId: null, expiresAt: null };
+    return { accepted: true, challengeId: null, expiresAt: null, retryAfterSeconds: null };
   }
-  return { accepted: true, challengeId: inserted.data.id, expiresAt };
+  return { accepted: true, challengeId: inserted.data.id, expiresAt, retryAfterSeconds: null };
 }
 
 async function resolveIdentity(phone: string): Promise<{ userId: string | null; email: string }> {

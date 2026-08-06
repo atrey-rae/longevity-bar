@@ -8,6 +8,7 @@ import InstallPrompt from "@/components/InstallPrompt";
 import QrKamera from "@/components/QrKamera";
 import RazitkovaKarta from "@/components/RazitkovaKarta";
 import SkenHlaska from "@/components/SkenHlaska";
+import UlozitTlacitko from "@/components/UlozitTlacitko";
 import { isCurrentUserAdmin } from "@/lib/admin-guard";
 import { getT } from "@/lib/i18n/server";
 import {
@@ -172,9 +173,7 @@ export default async function OdmenyPage({
               className="vstup"
               autoComplete="tel"
             />
-            <button type="submit" className="tlacitko-zapad w-full">
-              {t.spolecne.ulozit}
-            </button>
+            <UlozitTlacitko />
           </form>
         </section>
       )}
@@ -321,6 +320,13 @@ export default async function OdmenyPage({
           </ul>
         </section>
       )}
+
+      {/* Věrnostní karta je nejčastější vstup do appky (QR u pokladny) —
+          bez tohohle odkazu se z ní na rozcestník nedá dostat jinak než
+          adresním řádkem. */}
+      <Link href="/" className="tlacitko-vedlejsi">
+        {t.spolecne.zpetNaRozcestnik}
+      </Link>
 
       {/* ---------------------------------------------------------------- */}
       {/* Účet                                                              */}

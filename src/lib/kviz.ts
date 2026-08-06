@@ -51,6 +51,20 @@ export const QUIZ_VARIANTS: QuizVariant[] = ["microbiom", "profil"];
 /** Fallback všude, kde varianta chybí nebo je nečitelná. */
 export const DEFAULT_QUIZ_VARIANT: QuizVariant = "microbiom";
 
+/**
+ * Kontakt přihlášeného hosta pro předvyplnění formuláře kvízu.
+ *
+ * Prázdný řetězec = nemáme co nabídnout (nechceme `undefined` v `value`, to by
+ * z pole udělalo uncontrolled input). Pole zůstávají vždy editovatelná: tohle
+ * je nabídka, ne zámek — host může psát kupón na jiný e-mail.
+ */
+export type PredvyplnenyKontakt = {
+  email: string;
+  telefon: string;
+};
+
+export const PRAZDNY_KONTAKT: PredvyplnenyKontakt = { email: "", telefon: "" };
+
 /* -------------------------------------------------------------------------- */
 /* Baviči fronty                                                               */
 /* -------------------------------------------------------------------------- */

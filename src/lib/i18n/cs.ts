@@ -139,6 +139,7 @@ export const cs = {
     prihlasitSe: "Přihlásit se",
     odhlasit: "Odhlásit",
     ulozit: "Uložit",
+    ukladam: "Ukládám…",
     administrace: "Administrace",
     pravidlaAGdpr: "Pravidla & GDPR",
     krestniJmeno: "Křestní jméno",
@@ -220,6 +221,16 @@ export const cs = {
     podnadpisOdmeny:
       "Po přihlášení otevřeme tvoji věrnostní kartu a všechny nasbírané odměny.",
     podnadpisObecny: "Za každá 4 razítka si vybereš odměnu zdarma.",
+    /* --- Vstup do kvízu (`next` míří na /kviz/…) ------------------------- */
+    nadpisKviz: `Ještě krok ke slevě ${SLEVA_PROCENT} %`,
+    podnadpisKvizPred: "Kvíz ti posílá",
+    podnadpisKvizPo:
+      "z Longevity Baru — po přihlášení tě vrátíme přesně tam, kde jsi skončil.",
+    podnadpisKvizBezBavice:
+      "Po přihlášení tě vrátíme rovnou zpátky do kvízu, kde jsi skončil.",
+    procTelefonKviz: `Telefon po tobě chceme proto, že kupón na ${SLEVA_PROCENT} % je osobní — vydáme ho jednou a jen tobě, ať ho nikdo nezneužije.`,
+    souhlasKvizPred:
+      "Přihlášením souhlasíš se zpracováním telefonu. E-mail zadáš až v kvízu a použijeme ho k odeslání kupónu — do věrnostního programu tě tím nepřihlašujeme. Detaily v",
     chybaOauth:
       "Přihlášení přes Google se nedokončilo. Zkus to prosím znovu nebo použij telefon.",
     souhlasPred:
@@ -249,6 +260,10 @@ export const cs = {
       chybaSms: "SMS se nepodařilo odeslat.",
       chybaSmsKod: "SMS s kódem se nepodařilo odeslat.",
       chybaDelkaKodu: "Kód má 4 číslice.",
+      /* Rate limit SMS. Znění je stejné pro KAŽDÉ číslo — nesmí prozradit,
+         jestli u nás účet existuje. */
+      chybaLimitSms:
+        "Kód jsme za posledních 15 minut poslali už 3×. Zkus to za pár minut, nebo se přihlas přes Google.",
       chybaKod: "Kód nesedí nebo vypršel.",
       chybaKodVyprsel: "Kód nesedí nebo už vypršel.",
       chybaGoogle: "Přihlášení přes Google se nepodařilo. Zkus telefon výše.",
@@ -490,6 +505,12 @@ export const cs = {
     zadnyNadpis: "Kredit tu na tebe nečeká",
     zadnyPopis:
       "Kredit na Longevity Baru mají hosté festivalu, kterým ho přidělil tým v Healing appce. Když si myslíš, že tam tvůj je, ozvi se obsluze u baru.",
+    /* Třetí stav: NEVÍME. Nesmí tvrdit, že host nárok nemá — jen že se stav
+       teď nepodařilo zjistit. */
+    nedostupnyNadpis: "Kredit se teď nedaří načíst",
+    nedostupnyPopis:
+      "Zkus to prosím za chvíli, nebo ukaž tuhle obrazovku obsluze u baru.",
+    zkusitZnovu: "Zkusit znovu",
     zustatek: (zbyva: string, celkem: string) =>
       `zbývá z ${zbyva} · utraceno ${celkem}`,
     ukazObsluze: "Ukaž obsluze u baru",
@@ -575,6 +596,13 @@ export const cs = {
     vybrat: "Vybrat →",
     posilaTePred: "Posílá tě",
     posilaTePo: "z Longevity Baru.",
+
+    /* Obě varianty dokončené — rozcestník nesmí skončit dvěma šedými kartami. */
+    obeHotovoNadpis: "Oba kvízy máš hotové",
+    obeHotovoPopis:
+      "Další kupón z kvízu už na tebe nečeká — zato můžeš slevu darovat kamarádům nebo si projít celý sortiment.",
+    obeHotovoDarek: "Darovat slevu kamarádům →",
+    obeHotovoSortiment: "Prohlédnout sortiment WILD&COCO →",
 
     uvodNadpisPred: "Odemkni potenciál",
     uvodNadpisPo: "svého mikrobiomu!",

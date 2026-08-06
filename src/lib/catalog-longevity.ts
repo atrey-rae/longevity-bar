@@ -17,43 +17,143 @@ export type CatalogItem = {
 
 const driveImage = (id: string) => `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
 
+const COCOFIR_IMAGE = driveImage("1EiUSC-Kf78b0itvzayHI9C4PJxkuxfCK");
+const COCOFIR_SHOT_IMAGE = driveImage("1qb0WMwX7H7DoplHlxzR7IXWMLqtu-FN_");
+const KOKOS_VODA_IMAGE = driveImage("1k4HmgaMqWk9ZRFHYiCZy5b1AZIBHVw3t");
+
 /**
  * Publikovaná verze festivalového katalogu. Redakční zdroj:
  * https://docs.google.com/spreadsheets/d/1vmWbSkHuzEiemuojsnqxGUAjdDzjTIDfYqWOnUId9W4/edit?gid=1083744554
  *
- * Fakta zde navíc respektují pozdější schválené korekce z 4. 8. 2026.
+ * Fakta zde navíc respektují pozdější schválené korekce z 4. 8. a 6. 8. 2026.
+ *
+ * Korekce 6. 8. (Atrey): Cocofir, Cocofir Shot i kokosová voda se rozpadly na
+ * samostatné položky po příchutích — host u stánku si vybírá konkrétní chuť,
+ * ne kategorii. Názvy příchutí se PŘEBÍRAJÍ z pokladního katalogu
+ * (`healing-festival-bar/public/pos/catalog.mjs`), aby menu, pokladna a appka
+ * říkaly totéž; nevymýšlejí se tady.
  */
 export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
   {
-    id: "kokos-voda",
-    name: "Thai Raw kokosová voda",
+    id: "kokos-voda-wild",
+    name: "Wild Raw coconut water",
+    category: "Studené nápoje",
+    format: "473 ml",
+    description: "Ledově vychlazená kokosová voda Wild Raw přímo z lahve — čistá hydratace bez přidaného cukru a bez zbytečných oklik.",
+    usps: ["100% raw kokosová voda", "Není z koncentrátu", "Láhev 473 ml"],
+    imageUrl: KOKOS_VODA_IMAGE,
+  },
+  {
+    id: "kokos-voda-thai",
+    name: "Thai Raw coconut water",
     category: "Studené nápoje",
     format: "473 ml",
     description: "Čisté kokosové osvěžení servírované ledově vychlazené — jednoduchá chuť mladého kokosu bez zbytečných oklik.",
     usps: ["100% raw kokosová voda", "Není z koncentrátu", "Láhev 473 ml"],
-    imageUrl: driveImage("1k4HmgaMqWk9ZRFHYiCZy5b1AZIBHVw3t"),
+    imageUrl: KOKOS_VODA_IMAGE,
   },
   {
-    id: "cocofir",
-    name: "Cocofir",
+    id: "cocofir-young-coconut",
+    name: "Cocofir Young coconut",
     category: "Studené nápoje",
     format: "250 ml",
-    description: "Krémový fermentovaný kokosový nápoj, který si vybereš podle nálady — od čistého kokosu po ovocné a proteinové varianty.",
-    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Šest chuťových variant"],
-    imageUrl: driveImage("1EiUSC-Kf78b0itvzayHI9C4PJxkuxfCK"),
+    description: "Krémový fermentovaný kokosový nápoj v čisté kokosové podobě — vychlazený, rostlinný a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
   },
   {
-    id: "cocofir-shot",
-    name: "Cocofir Shot",
+    id: "cocofir-mango",
+    name: "Cocofir Mango",
+    category: "Studené nápoje",
+    format: "250 ml",
+    description: "Krémový fermentovaný kokosový nápoj s mangem — ovocná varianta, vychlazená, rostlinná a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
+  },
+  {
+    id: "cocofir-rybiz",
+    name: "Cocofir Rybíz",
+    category: "Studené nápoje",
+    format: "250 ml",
+    description: "Krémový fermentovaný kokosový nápoj s černým rybízem — svěže ovocný, vychlazený, rostlinný a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
+  },
+  {
+    id: "cocofir-choco-bliss",
+    name: "Cocofir Chocolate bliss",
+    category: "Studené nápoje",
+    format: "250 ml",
+    description: "Krémový fermentovaný kokosový nápoj v čokoládové variantě — vychlazený, rostlinný a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
+  },
+  {
+    id: "cocofir-banana-lemon",
+    name: "Cocofir Banana lemon",
+    category: "Studené nápoje",
+    format: "250 ml",
+    description: "Krémový fermentovaný kokosový nápoj s banánem a citronem — vychlazený, rostlinný a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
+  },
+  {
+    id: "cocofir-salted-caramel",
+    name: "Cocofir Slaný karamel",
+    category: "Studené nápoje",
+    format: "250 ml",
+    description: "Krémový fermentovaný kokosový nápoj s tónem slaného karamelu — vychlazený, rostlinný a bez laktózy.",
+    usps: ["Fermentovaný kokosový základ", "Rostlinný a bez laktózy", "Láhev 250 ml"],
+    imageUrl: COCOFIR_IMAGE,
+  },
+  {
+    id: "cocofir-shot-cacao-ceremony",
+    name: "Cocofir Shot Cacao ceremony",
     category: "Studené nápoje",
     format: "120 ml",
-    description: "Malá ochutnávka fermentovaného Cocofiru v praktickém shotu — když chceš výraznou chuť v rychlém festivalovém formátu.",
-    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Pět příchutí"],
-    imageUrl: driveImage("1qb0WMwX7H7DoplHlxzR7IXWMLqtu-FN_"),
+    description: "Malá ochutnávka fermentovaného Cocofiru v kakaové variantě — výrazná chuť v rychlém festivalovém formátu.",
+    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Rychlá ochutnávka u baru"],
+    imageUrl: COCOFIR_SHOT_IMAGE,
+  },
+  {
+    id: "cocofir-shot-mango-maracuja",
+    name: "Cocofir Shot Mango maracuja",
+    category: "Studené nápoje",
+    format: "120 ml",
+    description: "Malá ochutnávka fermentovaného Cocofiru s mangem a maracujou — výrazná chuť v rychlém festivalovém formátu.",
+    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Rychlá ochutnávka u baru"],
+    imageUrl: COCOFIR_SHOT_IMAGE,
+  },
+  {
+    id: "cocofir-shot-vanilka",
+    name: "Cocofir Shot Vanilka",
+    category: "Studené nápoje",
+    format: "120 ml",
+    description: "Malá ochutnávka fermentovaného Cocofiru s vanilkou — jemná varianta v rychlém festivalovém formátu.",
+    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Rychlá ochutnávka u baru"],
+    imageUrl: COCOFIR_SHOT_IMAGE,
+  },
+  {
+    id: "cocofir-shot-choco-bliss",
+    name: "Cocofir Shot Chocolate bliss",
+    category: "Studené nápoje",
+    format: "120 ml",
+    description: "Malá ochutnávka fermentovaného Cocofiru v čokoládové variantě — výrazná chuť v rychlém festivalovém formátu.",
+    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Rychlá ochutnávka u baru"],
+    imageUrl: COCOFIR_SHOT_IMAGE,
+  },
+  {
+    id: "cocofir-shot-banana-lemon",
+    name: "Cocofir Shot Banana lemon",
+    category: "Studené nápoje",
+    format: "120 ml",
+    description: "Malá ochutnávka fermentovaného Cocofiru s banánem a citronem — svěží varianta v rychlém festivalovém formátu.",
+    usps: ["Fermentovaný kokosový nápoj", "Kompaktní shot 120 ml", "Rychlá ochutnávka u baru"],
+    imageUrl: COCOFIR_SHOT_IMAGE,
   },
   {
     id: "kombucha",
-    name: "Kombucha Levandule",
+    name: "Kombucha Lavender",
     category: "Studené nápoje",
     format: "300 ml",
     description: "Jemně perlivá levandulová kombucha z pípy, podávaná na ledu jako lehké a aromatické festivalové osvěžení.",
@@ -71,9 +171,10 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     id: "matcha",
     name: "Matcha Latté",
     category: "Studené nápoje",
-    format: "6 g matchy",
-    description: "Výrazné ledové matcha latté s rostlinným nápojem — čistá čajová chuť, krémová textura a sytě zelená barva.",
-    usps: ["6 g matchy v porci", "Kokosové mléko nebo ovesný nápoj", "Vždy servírované na ledu"],
+    // Gramáž sjednocená s pokladnou i s listem surovin: 3 g, ne 6 g (Atrey 6. 8.).
+    format: "3 g matchy",
+    description: "Výrazné matcha latté s rostlinným nápojem — čistá čajová chuť, krémová textura a sytě zelená barva.",
+    usps: ["3 g matchy v porci", "Kokosové mléko nebo ovesný nápoj", "Lze podávat na ledu"],
   },
   {
     id: "matcha-mango",
@@ -81,15 +182,15 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     category: "Studené nápoje",
     format: "300 ml",
     description: "Vrstvené ledové latté, ve kterém se plná matcha potkává s kokosovým mlékem a sladce ovocným mangovým pyré.",
-    usps: ["6 g matchy", "Kokosové mléko", "Mango pyré"],
+    usps: ["3 g matchy", "Kokosové mléko", "Mango pyré", "Podáváme na ledu"],
   },
   {
     id: "mocktail",
     name: "Longevito Mocktail",
     category: "Studené nápoje",
     format: "300 ml",
-    description: "Signature nealkoholický drink s levandulovou kombuchou, 0% ginem, kapkou FOCUS a čerstvou mátou.",
-    usps: ["275 ml levandulové kombuchy", "25 ml 0% ginu", "1 ml FOCUS a snítka máty"],
+    description: "Signature nealkoholický drink s levandulovou kombuchou, mangovým pyré, kapkou FOCUS a čerstvou mátou.",
+    usps: ["275 ml levandulové kombuchy", "Mango pyré", "1 ml FOCUS a snítka máty"],
   },
   {
     id: "sampanske",
@@ -114,14 +215,9 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     description: "Koncentrovaný extrakt z houby reishi s charakteristicky zemitým profilem, který nejlépe zapadne do kakaa.",
     usps: ["Extrakt 10:1", "Dávka přibližně 1 g", "Doporučujeme do kakaa"],
   },
-  {
-    id: "blue-lotus",
-    name: "Modrý lotos",
-    category: "Přídavky",
-    format: "2 kapky",
-    description: "Jemný botanický přídavek s květinovým charakterem pro hosty, kteří chtějí svůj nápoj pojmout jako večerní rituál.",
-    usps: ["Dvě kapky do nápoje", "Květinový botanický profil", "Nejlépe ladí s večerními drinky"],
-  },
+  // Modrý lotos VYŘAZEN 6. 8. 2026 (Atrey) — u stánku se neprodává. V pokladním
+  // katalogu ještě figuruje jako modifikátor kávy; sladit tam patří majiteli
+  // healing repa, tady se nesmí objevit.
   {
     id: "dynamic",
     name: "Essential Dynamic",
@@ -164,8 +260,10 @@ export const LONGEVITY_BAR_CATALOG: CatalogItem[] = [
     name: "Wild Ceremony Cacao",
     category: "Káva & kakao",
     description: "Minimalistické kakao připravené z čistého kakaového základu a horké vody pro hosty, kteří chtějí ryzí chuť.",
-    usps: ["25 g kakaa", "Příprava s horkou vodou", "Hutná, neskrývaná kakaová chuť"],
-    imageUrl: "https://www.wildandcoco.com/temp/img/wi/wild-cacao-ceremony-w390-h471-431b433c3bf78ffa3dc1ee02db073e75.jpg",
+    usps: ["25 g ceremoniálního kakaa", "Příprava s horkou vodou", "Hutná, neskrývaná kakaová chuť"],
+    // Zatím referenční foto hrnku; reálnou fotku nápoje nahradí drop mechanismus
+    // (`scripts/sync_longevity_images.ts`).
+    imageUrl: "/longevity/wild-ceremony-cacao.jpg",
   },
   {
     id: "espresso",

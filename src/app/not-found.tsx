@@ -12,8 +12,10 @@ export default async function NenalezenoPage() {
       </p>
       <h1>{t.nenalezeno.nadpis}</h1>
       <p className="text-base text-kokos-50/80">{t.nenalezeno.popis}</p>
+      {/* Tlačítko míří na rozcestník, tak se tak musí i jmenovat — „Zpět na
+          kartu“ u odkazu na „/“ slibovalo věrnostní kartu a vedlo jinam. */}
       <Link href="/" className="tlacitko-hlavni">
-        {t.spolecne.zpetNaKartu}
+        {t.spolecne.zpetNaRozcestnik}
       </Link>
     </div>
   );

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import KreditObjednavka from "@/components/KreditObjednavka";
 import VydatTlacitko from "@/components/VydatTlacitko";
 import ZiveHodiny from "@/components/ZiveHodiny";
+import ZkusitZnovu from "@/components/ZkusitZnovu";
 import { barCreditProUzivatele } from "@/lib/healing-credit-session";
 import type { BarCreditObjednavka } from "@/lib/healing-credit";
 import { getT } from "@/lib/i18n/server";
@@ -32,6 +33,28 @@ export default async function KreditPage() {
   if (!user) redirect(`/prihlaseni?next=${encodeURIComponent("/kredit")}`);
 
   const { stav } = await barCreditProUzivatele(user.id);
+
+  // „Nevíme“ se od „nemáš“ musí lišit. Když most mlčí, nesmí appka hostovi
+  // tvrdit, že nárok nemá — nabídne opakování a cestu k obsluze.
+  if (stav.dostupnost === "nedostupny") {
+    return (
+      <div className="obal space-y-5">
+        <div className="karta space-y-3 text-center">
+          <p className="text-5xl" aria-hidden>
+            📡
+          </p>
+          <h1 className="text-stin">{t.kredit.nedostupnyNadpis}</h1>
+          <p className="text-sm leading-relaxed text-kokos-50/80">
+            {t.kredit.nedostupnyPopis}
+          </p>
+        </div>
+        <ZkusitZnovu />
+        <Link href="/" className="tlacitko-vedlejsi">
+          {t.spolecne.zpetNaRozcestnik}
+        </Link>
+      </div>
+    );
+  }
 
   if (!stav.eligible || !stav.credit) {
     return (

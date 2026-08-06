@@ -11,9 +11,11 @@ import type { Dict } from "@/lib/i18n/types";
 import { sazba } from "@/lib/text";
 import {
   ESHOP_URL,
+  PRAZDNY_KONTAKT,
   PRODUKTY,
   type Bavic,
   type KvizProdukt,
+  type PredvyplnenyKontakt,
 } from "@/lib/kviz";
 import { PROFIL_OTAZKY, PROFILY, vyhodnotitProfil } from "@/lib/kviz-profil";
 import {
@@ -42,10 +44,13 @@ const POCET_OTAZEK = PROFIL_OTAZKY.length;
 export default function KvizFlowProfil({
   bavic,
   referralKod = null,
+  predvyplneni = PRAZDNY_KONTAKT,
 }: {
   bavic: Bavic;
   /** Ověřený kód z `?od=` — putuje skrytým polem do server action. */
   referralKod?: string | null;
+  /** Kontakt přihlášeného hosta — jen výchozí hodnota, ne zámek. */
+  predvyplneni?: PredvyplnenyKontakt;
 }) {
   const t = useT();
   const lang = useLang();
@@ -61,8 +66,10 @@ export default function KvizFlowProfil({
   const [celyKatalog, setCelyKatalog] = useState(false);
 
   const [jmeno, setJmeno] = useState("");
-  const [email, setEmail] = useState("");
-  const [telefon, setTelefon] = useState("");
+  // Přihlášený host už nám telefon i ověřený e-mail dal — přepisovat je může,
+  // ale opisovat je z hlavy u stánku nemusí.
+  const [email, setEmail] = useState(predvyplneni.email);
+  const [telefon, setTelefon] = useState(predvyplneni.telefon);
 
   const [vysledek, akce, ceka] = useActionState<VysledekKuponu | null, FormData>(
     odeslatKvizLead,

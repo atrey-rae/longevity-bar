@@ -9,20 +9,70 @@ export type KatalogPolozkaEn = {
 };
 
 export const LONGEVITY_KATALOG_EN: Record<string, KatalogPolozkaEn> = {
-  "kokos-voda": {
+  "kokos-voda-wild": {
+    description:
+      "Ice-cold Wild Raw coconut water straight from the bottle — clean hydration with no added sugar and no unnecessary detours.",
+    usps: ["100% raw coconut water", "Not from concentrate", "473 ml bottle"],
+  },
+  "kokos-voda-thai": {
     description:
       "Pure coconut refreshment served ice-cold — the simple taste of young coconut, with no unnecessary detours.",
     usps: ["100% raw coconut water", "Not from concentrate", "473 ml bottle"],
   },
-  cocofir: {
+  "cocofir-young-coconut": {
     description:
-      "A creamy fermented coconut drink to pick by mood — from pure coconut to fruity and protein variants.",
-    usps: ["Fermented coconut base", "Plant-based and lactose-free", "Six flavour variants"],
+      "A creamy fermented coconut drink in its purest coconut form — chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
   },
-  "cocofir-shot": {
+  "cocofir-mango": {
     description:
-      "A small taste of fermented Cocofir in a handy shot — for when you want bold flavour in a quick festival format.",
-    usps: ["Fermented coconut drink", "Compact 120 ml shot", "Five flavours"],
+      "A creamy fermented coconut drink with mango — the fruity option, chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
+  },
+  "cocofir-rybiz": {
+    description:
+      "A creamy fermented coconut drink with blackcurrant — crisp and fruity, chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
+  },
+  "cocofir-choco-bliss": {
+    description:
+      "A creamy fermented coconut drink in its chocolate version — chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
+  },
+  "cocofir-banana-lemon": {
+    description:
+      "A creamy fermented coconut drink with banana and lemon — chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
+  },
+  "cocofir-salted-caramel": {
+    description:
+      "A creamy fermented coconut drink with a note of salted caramel — chilled, plant-based and lactose-free.",
+    usps: ["Fermented coconut base", "Plant-based and lactose-free", "250 ml bottle"],
+  },
+  "cocofir-shot-cacao-ceremony": {
+    description:
+      "A small taste of fermented Cocofir in its cacao version — bold flavour in a quick festival format.",
+    usps: ["Fermented coconut drink", "Compact 120 ml shot", "A quick taste at the bar"],
+  },
+  "cocofir-shot-mango-maracuja": {
+    description:
+      "A small taste of fermented Cocofir with mango and passion fruit — bold flavour in a quick festival format.",
+    usps: ["Fermented coconut drink", "Compact 120 ml shot", "A quick taste at the bar"],
+  },
+  "cocofir-shot-vanilka": {
+    description:
+      "A small taste of fermented Cocofir with vanilla — the gentle option, in a quick festival format.",
+    usps: ["Fermented coconut drink", "Compact 120 ml shot", "A quick taste at the bar"],
+  },
+  "cocofir-shot-choco-bliss": {
+    description:
+      "A small taste of fermented Cocofir in its chocolate version — bold flavour in a quick festival format.",
+    usps: ["Fermented coconut drink", "Compact 120 ml shot", "A quick taste at the bar"],
+  },
+  "cocofir-shot-banana-lemon": {
+    description:
+      "A small taste of fermented Cocofir with banana and lemon — the fresh option, in a quick festival format.",
+    usps: ["Fermented coconut drink", "Compact 120 ml shot", "A quick taste at the bar"],
   },
   kombucha: {
     description:
@@ -36,19 +86,19 @@ export const LONGEVITY_KATALOG_EN: Record<string, KatalogPolozkaEn> = {
   },
   matcha: {
     description:
-      "A bold iced matcha latte with a plant-based drink — clean tea flavour, creamy texture and deep green colour.",
-    usps: ["6 g of matcha per serving", "Coconut milk or oat drink", "Always served over ice"],
-    format: "6 g matcha",
+      "A bold matcha latte with a plant-based drink — clean tea flavour, creamy texture and deep green colour.",
+    usps: ["3 g of matcha per serving", "Coconut milk or oat drink", "Can be served on ice"],
+    format: "3 g matcha",
   },
   "matcha-mango": {
     description:
       "A layered iced latte where full-bodied matcha meets coconut milk and sweetly fruity mango purée.",
-    usps: ["6 g of matcha", "Coconut milk", "Mango purée"],
+    usps: ["3 g of matcha", "Coconut milk", "Mango purée", "Always served on ice"],
   },
   mocktail: {
     description:
-      "Our signature alcohol-free drink with lavender kombucha, 0% gin, a drop of FOCUS and fresh mint.",
-    usps: ["275 ml lavender kombucha", "25 ml 0% gin", "1 ml FOCUS and a sprig of mint"],
+      "Our signature alcohol-free drink with lavender kombucha, mango purée, a drop of FOCUS and fresh mint.",
+    usps: ["275 ml lavender kombucha", "Mango purée", "1 ml FOCUS and a sprig of mint"],
   },
   sampanske: {
     description:
@@ -65,12 +115,8 @@ export const LONGEVITY_KATALOG_EN: Record<string, KatalogPolozkaEn> = {
       "A concentrated reishi mushroom extract with a distinctively earthy profile that works best stirred into cacao.",
     usps: ["10:1 extract", "Dose of roughly 1 g", "Recommended in cacao"],
   },
-  "blue-lotus": {
-    description:
-      "A gentle botanical addition with a floral character, for guests who want to treat their drink as an evening ritual.",
-    usps: ["Two drops per drink", "Floral botanical profile", "Pairs best with evening drinks"],
-    format: "2 drops",
-  },
+  // "blue-lotus" vyřazen 6. 8. 2026 spolu s českou položkou — překlad pro
+  // neznámé id by shodil `katalogTexty()` hned při startu.
   dynamic: {
     description:
       "A creamy functional add-in that brings together MCT fats, mushrooms, ginseng, minerals and vitamins in a single spoonful.",
@@ -99,7 +145,7 @@ export const LONGEVITY_KATALOG_EN: Record<string, KatalogPolozkaEn> = {
   ceremony: {
     description:
       "A minimalist cacao made from a pure cacao base and hot water, for guests who want the flavour unadorned.",
-    usps: ["25 g of cacao", "Made with hot water", "Thick, unmasked cacao flavour"],
+    usps: ["25 g of ceremonial cacao", "Made with hot water", "Thick, unmasked cacao flavour"],
   },
   espresso: {
     description:

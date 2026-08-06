@@ -31,6 +31,19 @@ assert.equal(
   smsText("1234"),
   "Tvuj kod pro Longevity Bar je 1234. Tak ziskej co nejvic odmen! WILD&COCO",
 );
+// Výchozí jazyk zůstává čeština — bez parametru se text nesmí změnit.
+assert.equal(smsText("1234"), smsText("1234", "cs"));
+assert.equal(smsText("1234", "en"), "Your Longevity Bar code is 1234. Enjoy! WILD&COCO");
+// GSM-7: diakritika by zprávu rozpadla do dvou UCS-2 segmentů (dvojnásobná
+// cena, horší doručitelnost). Obě mutace proto musí zůstat v ASCII.
+for (const jazyk of ["cs", "en"] as const) {
+  const text = smsText("1234", jazyk);
+  assert.ok(
+    // eslint-disable-next-line no-control-regex
+    /^[\x20-\x7E]+$/.test(text),
+    `SMS (${jazyk}) musí být bez diakritiky: ${text}`,
+  );
+}
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("src/components/PrihlaseniFormular.tsx");

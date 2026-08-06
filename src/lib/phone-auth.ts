@@ -1,3 +1,5 @@
+import { DEFAULT_LANG, type Lang } from "./i18n/lang";
+
 export const PIN_TTL_MS = 10 * 60 * 1000;
 export const MAX_PIN_ATTEMPTS = 5;
 export const PHONE_RATE_WINDOW_MS = 15 * 60 * 1000;
@@ -31,8 +33,18 @@ export function generateFourDigitCode(random: () => number = secureRandom): stri
   return String(value).padStart(4, "0");
 }
 
-export function smsText(code: string): string {
-  return `Tvuj kod pro Longevity Bar je ${code}. Tak ziskej co nejvic odmen! WILD&COCO`;
+/**
+ * Text ověřovací SMS v jazyce, ve kterém host appku používá.
+ *
+ * ZÁMĚRNĚ bez diakritiky v obou jazycích: GSM-7 abeceda ji neumí a zpráva by
+ * se rozpadla do dvou UCS-2 segmentů (dvojnásobná cena, horší doručitelnost).
+ * České znění je schválené a nemění se; výchozí jazyk zůstává čeština, takže
+ * volající bez parametru dostane přesně to co dřív.
+ */
+export function smsText(code: string, lang: Lang = DEFAULT_LANG): string {
+  return lang === "en"
+    ? `Your Longevity Bar code is ${code}. Enjoy! WILD&COCO`
+    : `Tvuj kod pro Longevity Bar je ${code}. Tak ziskej co nejvic odmen! WILD&COCO`;
 }
 
 export function isInternalAuthEmail(email: string | null | undefined): boolean {

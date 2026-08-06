@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isAuthorizedHealingBridge } from "@/lib/healing-bridge";
+import { jeAutorizovanyReport } from "@/lib/report-auth";
 import { sestavitReportUzivatelu } from "@/lib/report-users";
 
 // `node:crypto` v `lib/healing-bridge.ts` potřebuje Node runtime, ne Edge.
@@ -21,24 +21,6 @@ export const dynamic = "force-dynamic";
  * `scripts/sync_bar_users_report.py` (zrcadlení do Google Sheetu). Obalit ho
  * do objektu by ten skript rozbil.
  */
-/**
- * Vedle bridge secretu bere i vlastní `REPORT_USERS_SECRET` — reporting tak
- * nepotřebuje znát sdílený secret SMS/kredit mostu (a jeho rotace se ho
- * nedotkne). Stejná pravidla: konstantní čas, fail-closed když chybí.
- */
-function jeAutorizovanyReport(hlavicka: string | null): boolean {
-  if (isAuthorizedHealingBridge(hlavicka)) return true;
-  const vlastni = process.env.REPORT_USERS_SECRET;
-  if (!vlastni || !hlavicka?.startsWith("Bearer ")) return false;
-  const token = hlavicka.slice("Bearer ".length);
-  if (token.length !== vlastni.length) return false;
-  let diff = 0;
-  for (let i = 0; i < token.length; i += 1) {
-    diff |= token.charCodeAt(i) ^ vlastni.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
 export async function GET(request: Request) {
   if (!jeAutorizovanyReport(request.headers.get("authorization"))) {
     return NextResponse.json(
